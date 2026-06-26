@@ -1,0 +1,29 @@
+from django.urls import path
+
+from .views import (
+    EstadoProfesionalDetalleView,
+    EstadoProfesionalView,
+    EstadosAtencionView,
+    PerfilProfesionalView,
+    RegistroProfesionalView,
+    DepartamentosView, 
+    MunicipiosView,
+)
+
+urlpatterns = [
+    path('registro/', RegistroProfesionalView.as_view(), name='registro-profesional'),
+    path('perfil/', PerfilProfesionalView.as_view(), name='perfil-profesional'),
+    path('estados/', EstadosAtencionView.as_view(), name='estados-atencion'),
+    path('estado/', EstadoProfesionalView.as_view(), name='estado-profesional'),
+    path('departamentos/', DepartamentosView.as_view(), name='departamentos'),
+    path('departamentos/<int:departamento_id>/municipios/', MunicipiosView.as_view(), name='municipios'),
+    path(
+        'estado/<int:profesional_id>/',
+        EstadoProfesionalDetalleView.as_view(),
+        name='estado-profesional-detalle',
+    ),
+]
+
+
+
+

@@ -1,0 +1,221 @@
+from rest_framework import serializers
+import httpx
+
+from .models import EstadoAtencion, PerfilProfesional, Departamento, Municipio
+
+
+
+
+class EstadoAtencionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EstadoAtencion
+        fields = [
+            'id',
+            'codigo',
+            'nombre',
+            'activo',
+            'fecha_creacion',
+        ]
+        read_only_fields = ['id', 'fecha_creacion']
+
+
+class CambiarEstadoProfesionalSerializer(serializers.ModelSerializer):
+    estado_id = serializers.PrimaryKeyRelatedField(
+        queryset=EstadoAtencion.objects.filter(activo=True),
+        source='estado',
+        write_only=True,
+    )
+
+    class Meta:
+        model = PerfilProfesional
+        fields = ['estado_id']
+
+
+def geocodificar_direccion(direccion: str) -> tuple[float, float]:
+
+    # --- 1. Intentar con Nominatim (gratis) ---
+    try:
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            "q": direccion,
+            "format": "json",
+            "limit": 1,
+            "countrycodes": "co",
+            "addressdetails": 1,
+        }
+        headers = {"User-Agent": "MiAppProfesionales/1.0 (contacto@miapp.com)"}
+
+        response = httpx.get(url, params=params, headers=headers, timeout=5)
+        response.raise_for_status()
+        resultados = response.json()
+
+        if resultados:
+            return float(resultados[0]["lat"]), float(resultados[0]["lon"])
+
+    except Exception:
+        pass  # Si Nominatim falla, caemos a Google
+
+    # --- 2. Fallback: Google Geocoding API ---
+    try:
+        api_key = settings.GOOGLE_GEOCODING_API_KEY
+        if not api_key:
+            raise serializers.ValidationError(
+                "No se encontró la dirección y no hay API key de Google configurada."
+            )
+
+        url = "https://maps.googleapis.com/maps/api/geocode/json"
+        params = {
+            "address": direccion,
+            "key": api_key,
+            "region": "co",
+            "language": "es",
+        }
+
+        response = httpx.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        if data["status"] == "OK":
+            location = data["results"][0]["geometry"]["location"]
+            return float(location["lat"]), float(location["lng"])
+
+        raise serializers.ValidationError(
+            f"No se encontró la dirección. Estado Google: {data['status']}"
+        )
+
+    except serializers.ValidationError:
+        raise
+
+    except Exception as exc:
+        raise serializers.ValidationError(
+            f"Error al contactar Google Geocoding: {exc}"
+        )
+
+
+
+class PerfilProfesionalSerializer(serializers.ModelSerializer):
+    nombre    = serializers.CharField(source='usuario.nombre',   read_only=True)
+    apellido  = serializers.CharField(source='usuario.apellido', read_only=True)
+    email     = serializers.EmailField(source='usuario.email',   read_only=True)
+    telefono  = serializers.CharField(source='usuario.telefono', read_only=True)
+    rol       = serializers.CharField(source='usuario.rol',      read_only=True)
+    estado    = EstadoAtencionSerializer(read_only=True)
+    estado_id = serializers.PrimaryKeyRelatedField(
+        queryset=EstadoAtencion.objects.filter(activo=True),
+        source='estado',
+        write_only=True,
+        required=False,
+    )
+
+    # Campos nuevos solo de escritura
+    departamento_id = serializers.PrimaryKeyRelatedField(
+        queryset=Departamento.objects.all(),
+        write_only=True,
+        required=True,
+    )
+    municipio_id = serializers.PrimaryKeyRelatedField(
+        queryset=Municipio.objects.all(),
+        write_only=True,
+        required=True,
+    )
+
+    class Meta:
+        model = PerfilProfesional
+        fields = [
+            'id', 'nombre', 'apellido', 'email', 'telefono', 'rol',
+            'direccion', 'ubicacion',
+            'latitud', 'longitud',
+            'nombre_local', 'descripcion',
+            'activo', 'horarios_atencion',
+            'estado', 'estado_id',
+            'departamento_id', 'municipio_id',   # ← nuevos
+            'fecha_creacion', 'fecha_actualizacion',
+        ]
+        read_only_fields = ['id', 'fecha_creacion', 'fecha_actualizacion']
+        extra_kwargs = {
+            'latitud':   {'required': False, 'allow_null': True},
+            'longitud':  {'required': False, 'allow_null': True},
+            'ubicacion': {'required': False},
+        }
+
+    def validate(self, attrs):
+        departamento = attrs.pop('departamento_id', None)
+        municipio    = attrs.pop('municipio_id', None)
+
+        # Validar que el municipio pertenece al departamento solo si ambos vienen
+        if municipio and departamento:
+            if municipio.departamento_id != departamento.id:
+                raise serializers.ValidationError(
+                    f"El municipio '{municipio.nombre}' no pertenece al departamento '{departamento.nombre}'."
+                )
+            # Construir ubicacion automáticamente solo si ambos están presentes
+            attrs['ubicacion'] = f"{municipio.nombre}, {departamento.nombre}"
+
+        # Geocodificar solo si no hay coordenadas ya guardadas
+        if not attrs.get('latitud') or not attrs.get('longitud'):
+            direccion = attrs.get('direccion', '')
+
+            # En PATCH puede que ya tenga coordenadas en la instancia
+            instance = getattr(self, 'instance', None)
+            if instance and instance.latitud and instance.longitud:
+                # Ya tiene coordenadas guardadas, no geocodificar
+                return attrs
+
+            if not direccion:
+                raise serializers.ValidationError(
+                    "Debes proporcionar 'direccion' para geocodificar."
+                )
+
+            if municipio and departamento:
+                query = f"{direccion}, {municipio.nombre}, {departamento.nombre}, Colombia"
+            else:
+                # Usar ubicacion existente como contexto si no vienen dep/mun
+                ubicacion = attrs.get('ubicacion') or (instance.ubicacion if instance else '')
+                query = f"{direccion}, {ubicacion}, Colombia".strip(', ')
+
+            lat, lon = geocodificar_direccion(query)
+            attrs['latitud']  = lat
+            attrs['longitud'] = lon
+
+        return attrs
+
+
+    # create() y update() sin cambios
+    def create(self, validated_data):
+        usuario = self.context['request'].user
+        usuario.rol = 'profesional'
+        usuario.primer_ingreso = False
+        usuario.save(update_fields=['rol', 'primer_ingreso'])
+
+        if 'estado' not in validated_data:
+            validated_data['estado'] = EstadoAtencion.objects.filter(
+                codigo='disponible', activo=True,
+            ).first()
+
+        perfil, _ = PerfilProfesional.objects.update_or_create(
+            usuario=usuario,
+            defaults=validated_data,
+        )
+        return perfil
+
+    def update(self, instance, validated_data):
+        instance.usuario.rol = 'profesional'
+        instance.usuario.save(update_fields=['rol'])
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        return instance
+
+class DepartamentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Departamento
+        fields = ['id', 'codigo', 'nombre']
+
+
+class MunicipioSerializer(serializers.ModelSerializer):
+    departamento = DepartamentoSerializer(read_only=True)
+
+    class Meta:
+        model = Municipio
+        fields = ['id', 'nombre', 'departamento']

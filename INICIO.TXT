@@ -1,0 +1,7 @@
+# En Windows
+venv\Scripts\activate
+
+# En Mac / Linux
+source venv/bin/activate
+
+python manage.py runserver 8006

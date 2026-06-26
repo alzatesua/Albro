@@ -42,7 +42,7 @@ albro/
 └── cola/                 # App de gestión de colas (pendiente)
 ```
 
-## ⚙️ Configuración
+## Configuración
 
 ### Variables de Entorno
 
@@ -71,7 +71,7 @@ GRANT ALL PRIVILEGES ON DATABASE albro TO albro_user;
 \q
 ```
 
-## 🛠️ Instalación
+## Instalación
 
 1. **Clonar el repositorio**
    ```bash
@@ -114,7 +114,7 @@ GRANT ALL PRIVILEGES ON DATABASE albro TO albro_user;
 
 El servidor estará disponible en `http://localhost:8006`
 
-## 🔌 Endpoints de la API
+## Endpoints de la API
 
 ### Autenticación
 
@@ -194,8 +194,8 @@ Authorization: Bearer <access_token>
   {
     "direccion": "Calle 10 # 20-30",
     "ubicacion": "Bogotá",
-    "latitud": 4.711000,
-    "longitud": -74.072100,
+    "latitud": 4.7100,
+    "longitud": -700,
     "nombre_local": "Barbería Central",
     "descripcion": "Cortes, barba y cuidado personal",
     "activo": true,
@@ -225,8 +225,8 @@ Authorization: Bearer <access_token>
     "rol": "profesional",
     "direccion": "Calle 10 # 20-30",
     "ubicacion": "Bogotá",
-    "latitud": "4.711000",
-    "longitud": "-74.072100",
+    "latitud": "40",
+    "longitud": "-700",
     "nombre_local": "Barbería Central",
     "descripcion": "Cortes, barba y cuidado personal",
     "activo": true,
@@ -345,7 +345,7 @@ Para usar los endpoints protegidos, incluye el token en el header:
 Authorization: Bearer <access_token>
 ```
 
-## 👥 Roles de Usuario
+## Roles de Usuario
 
 El sistema soporta tres tipos de usuarios:
 
@@ -393,7 +393,7 @@ python manage.py shell
 python manage.py test
 ```
 
-## 🌐 Configuración de CORS
+## Configuración de CORS
 
 El proyecto tiene CORS habilitado para todos los orígenes en desarrollo. Para producción, actualiza la configuración en `albro/settings.py`:
 
@@ -418,7 +418,7 @@ CHANNEL_LAYERS = {
 }
 ```
 
-## 🗄️ Base de Datos en Producción
+## Base de Datos en Producción
 
 Para configurar la base de datos en producción:
 

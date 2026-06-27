@@ -75,7 +75,7 @@ GRANT ALL PRIVILEGES ON DATABASE albro TO albro_user;
 
 1. **Clonar el repositorio**
    ```bash
-   git clone <url-del-repositorio>
+   git clone https://github.com/alzatesua/Albro.git
    cd albro
    ```
 
@@ -374,6 +374,10 @@ El sistema soporta tres tipos de usuarios:
 ##  Comandos Útiles
 
 ```bash
+
+# cargar departamentos y municipios
+python manage.py cargar_ubicaciones
+
 # Ejecutar servidor de desarrollo
 python manage.py runserver 8006
 

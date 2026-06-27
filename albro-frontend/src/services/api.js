@@ -65,3 +65,7 @@ export const registrarProfesional = (datos) =>
     method: "POST",
     body: JSON.stringify(datos),
   });
+
+
+export const getGeocodingApiKey = () =>
+  import.meta.env.VITE_GOOGLE_GEOCODING_API_KEY || "";

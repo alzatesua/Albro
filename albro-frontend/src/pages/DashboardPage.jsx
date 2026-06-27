@@ -188,7 +188,7 @@ const DashboardPage = () => {
         </div>
 
         {/* Sección activa */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm min-h-64 p-8">
+        <div className={`bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden ${seccionActiva === "mapa" ? "" : "p-8 min-h-64"}`}>
           {secciones[seccionActiva]}
         </div>
       </main>

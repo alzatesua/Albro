@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { User, Mail, Lock, Phone, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { registrarUsuario } from "@/services/api";
+import fondoLogin from "@/assets/fondo-login.jpeg";
+import imagenDerecha from "@/assets/imege-derecha-login.jpg";
 
 export default function RegistroPage() {
   const navigate = useNavigate();
@@ -30,16 +29,14 @@ export default function RegistroPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setEstado({ cargando: true, error: null, exito: false });
-
     try {
       await registrarUsuario(form);
       setEstado({ cargando: false, error: null, exito: true });
-      // Redirige al login tras 1.5 s para que el usuario vea el mensaje de éxito
       setTimeout(() => navigate("/login"), 1500);
     } catch (err) {
       setEstado({
         cargando: false,
-        error: err.message || "No se pudo conectar con el servidor. Inténtalo de nuevo.",
+        error: err.message || "No se pudo conectar con el servidor.",
         exito: false,
       });
     }
@@ -47,201 +44,225 @@ export default function RegistroPage() {
 
   const { cargando, error, exito } = estado;
 
+  const inputStyle = {
+    background: "rgba(255,255,255,0.1)",
+    border: "1px solid rgba(255,255,255,0.15)",
+  };
+
+  const inputFocus = (e) => {
+    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
+    e.target.style.background = "rgba(255,255,255,0.15)";
+  };
+
+  const inputBlur = (e) => {
+    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
+    e.target.style.background = "rgba(255,255,255,0.1)";
+  };
+
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4 py-12">
-      {/* Card contenedor */}
-      <div className="w-full max-w-md">
-        {/* Logo / nombre */}
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Albro</h1>
-          <p className="mt-1 text-sm text-zinc-400">Crea tu cuenta y empieza hoy</p>
-        </div>
+    <div
+      className="min-h-screen flex relative overflow-hidden"
+      style={{
+        backgroundImage: `url(${fondoLogin})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/50" />
 
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl shadow-black/40">
-          {/* Selector de rol */}
-          <div className="mb-6">
-            <Label className="text-xs font-medium uppercase tracking-widest text-zinc-500 mb-2 block">
-              Quiero unirme como
-            </Label>
-            <div className="grid grid-cols-2 gap-2">
-              {["cliente", "profesional"].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setForm((prev) => ({ ...prev, rol: r }))}
-                  className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-all duration-150 cursor-pointer
-                    ${
-                      form.rol === r
-                        ? "border-white bg-white text-zinc-950"
-                        : "border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-500 hover:text-white"
-                    }`}
-                >
-                  {r.charAt(0).toUpperCase() + r.slice(1)}
-                </button>
-              ))}
+      {/* Contenedor centrado */}
+      <div className="relative z-10 w-full flex items-center justify-center p-6 overflow-hidden">
+        <div
+          className="animate__animated animate__fadeInRight animate__fast w-full max-w-4xl rounded-3xl overflow-hidden flex"
+          style={{
+            background: "rgba(255,255,255,0.08)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            boxShadow: "0 32px 64px rgba(0,0,0,0.4)",
+          }}
+        >
+          {/* Panel izquierdo — formulario */}
+          <div className="w-full lg:w-1/2 p-10 flex flex-col justify-center">
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold text-white tracking-tight">
+                Crea tu cuenta
+              </h2>
+              <p className="text-white/50 text-sm mt-1">
+                Únete y empieza a gestionar tu negocio
+              </p>
             </div>
-          </div>
 
-          {/* Formulario */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Nombre y Apellido */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="nombre" className="text-sm text-zinc-300">
-                  Nombre
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 size-4 pointer-events-none" />
-                  <Input
-                    id="nombre"
-                    name="nombre"
-                    type="text"
-                    placeholder="Juan"
-                    value={form.nombre}
-                    onChange={handleChange}
-                    required
-                    autoComplete="given-name"
-                    className="pl-9 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600
-                               focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white
-                               hover:border-zinc-500 transition-colors"
+            {/* Selector de rol */}
+            <div className="mb-5">
+              <p className="text-white/40 text-xs uppercase tracking-widest mb-2">
+                Quiero unirme como
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {["cliente", "profesional"].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, rol: r }))}
+                    className="h-10 rounded-xl text-sm font-medium transition-all"
+                    style={
+                      form.rol === r
+                        ? { background: "rgba(255,255,255,0.95)", color: "#111" }
+                        : {
+                            background: "rgba(255,255,255,0.08)",
+                            border: "1px solid rgba(255,255,255,0.12)",
+                            color: "rgba(255,255,255,0.5)",
+                          }
+                    }
+                  >
+                    {r.charAt(0).toUpperCase() + r.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Nombre y Apellido */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-white/70 text-sm font-medium">Nombre</label>
+                  <div className="relative">
+                    <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                    <input
+                      id="nombre" name="nombre" type="text"
+                      placeholder="Juan"
+                      value={form.nombre} onChange={handleChange} required
+                      className="w-full h-11 pl-9 pr-4 rounded-xl text-sm text-white placeholder:text-white/30 outline-none transition-all"
+                      style={inputStyle} onFocus={inputFocus} onBlur={inputBlur}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-white/70 text-sm font-medium">Apellido</label>
+                  <input
+                    id="apellido" name="apellido" type="text"
+                    placeholder="Alzate"
+                    value={form.apellido} onChange={handleChange} required
+                    className="w-full h-11 px-4 rounded-xl text-sm text-white placeholder:text-white/30 outline-none transition-all"
+                    style={inputStyle} onFocus={inputFocus} onBlur={inputBlur}
                   />
                 </div>
               </div>
 
+              {/* Email */}
               <div className="space-y-1.5">
-                <Label htmlFor="apellido" className="text-sm text-zinc-300">
-                  Apellido
-                </Label>
-                <Input
-                  id="apellido"
-                  name="apellido"
-                  type="text"
-                  placeholder="Alzate"
-                  value={form.apellido}
-                  onChange={handleChange}
-                  required
-                  autoComplete="family-name"
-                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600
-                             focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white
-                             hover:border-zinc-500 transition-colors"
-                />
+                <label className="text-white/70 text-sm font-medium">Correo electrónico</label>
+                <div className="relative">
+                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    id="email" name="email" type="email"
+                    placeholder="juan@ejemplo.com"
+                    value={form.email} onChange={handleChange} required
+                    className="w-full h-11 pl-9 pr-4 rounded-xl text-sm text-white placeholder:text-white/30 outline-none transition-all"
+                    style={inputStyle} onFocus={inputFocus} onBlur={inputBlur}
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Email */}
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm text-zinc-300">
-                Correo electrónico
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 size-4 pointer-events-none" />
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="juan@ejemplo.com"
-                  value={form.email}
-                  onChange={handleChange}
-                  required
-                  autoComplete="email"
-                  className="pl-9 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600
-                             focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white
-                             hover:border-zinc-500 transition-colors"
-                />
+              {/* Contraseña */}
+              <div className="space-y-1.5">
+                <label className="text-white/70 text-sm font-medium">Contraseña</label>
+                <div className="relative">
+                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    id="password" name="password" type="password"
+                    placeholder="Mínimo 8 caracteres"
+                    value={form.password} onChange={handleChange} required
+                    className="w-full h-11 pl-9 pr-4 rounded-xl text-sm text-white placeholder:text-white/30 outline-none transition-all"
+                    style={inputStyle} onFocus={inputFocus} onBlur={inputBlur}
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Contraseña */}
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-sm text-zinc-300">
-                Contraseña
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 size-4 pointer-events-none" />
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="Mínimo 8 caracteres"
-                  value={form.password}
-                  onChange={handleChange}
-                  required
-                  autoComplete="new-password"
-                  className="pl-9 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600
-                             focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white
-                             hover:border-zinc-500 transition-colors"
-                />
+              {/* Teléfono */}
+              <div className="space-y-1.5">
+                <label className="text-white/70 text-sm font-medium">Teléfono</label>
+                <div className="relative">
+                  <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    id="telefono" name="telefono" type="tel"
+                    placeholder="+57 300 123 4567"
+                    value={form.telefono} onChange={handleChange} required
+                    className="w-full h-11 pl-9 pr-4 rounded-xl text-sm text-white placeholder:text-white/30 outline-none transition-all"
+                    style={inputStyle} onFocus={inputFocus} onBlur={inputBlur}
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Teléfono */}
-            <div className="space-y-1.5">
-              <Label htmlFor="telefono" className="text-sm text-zinc-300">
-                Teléfono
-              </Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 size-4 pointer-events-none" />
-                <Input
-                  id="telefono"
-                  name="telefono"
-                  type="tel"
-                  placeholder="+57 300 123 4567"
-                  value={form.telefono}
-                  onChange={handleChange}
-                  required
-                  autoComplete="tel"
-                  className="pl-9 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600
-                             focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white
-                             hover:border-zinc-500 transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Feedback */}
-            {error && (
-              <Alert className="border-red-900 bg-red-950/50 text-red-300 py-3">
-                <AlertCircle className="size-4 text-red-400" />
-                <AlertDescription className="text-sm ml-2">{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {exito && (
-              <Alert className="border-emerald-900 bg-emerald-950/50 text-emerald-300 py-3">
-                <CheckCircle2 className="size-4 text-emerald-400" />
-                <AlertDescription className="text-sm ml-2">
-                  Cuenta creada. Redirigiendo al login…
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Botón de envío */}
-            <Button
-              type="submit"
-              disabled={cargando || exito}
-              className="w-full bg-white text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200
-                         font-medium transition-colors mt-2 cursor-pointer disabled:opacity-60"
-            >
-              {cargando ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="size-4 animate-spin" />
-                  Creando cuenta…
-                </span>
-              ) : (
-                "Crear cuenta"
+              {/* Feedback */}
+              {error && (
+                <Alert className="py-3 border-red-500/40"
+                  style={{ background: "rgba(239,68,68,0.15)", backdropFilter: "blur(8px)" }}>
+                  <AlertCircle className="size-4 text-red-400" />
+                  <AlertDescription className="text-sm text-red-200 ml-2">{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </form>
 
-          {/* Link a login */}
-          <p className="mt-6 text-center text-sm text-zinc-500">
-            ¿Ya tienes cuenta?{" "}
-            <Link
-              to="/login"
-              className="text-zinc-300 underline underline-offset-4 hover:text-white transition-colors"
-            >
-              Inicia sesión
-            </Link>
-          </p>
+              {exito && (
+                <Alert className="py-3 border-emerald-500/40"
+                  style={{ background: "rgba(16,185,129,0.15)", backdropFilter: "blur(8px)" }}>
+                  <CheckCircle2 className="size-4 text-emerald-400" />
+                  <AlertDescription className="text-sm text-emerald-200 ml-2">
+                    Cuenta creada. Redirigiendo al login…
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Botón */}
+              <button
+                type="submit"
+                disabled={cargando || exito}
+                className="w-full h-11 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{ background: "rgba(255,255,255,0.95)", color: "#111" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,1)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.95)")}
+              >
+                {cargando ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Creando cuenta…
+                  </span>
+                ) : (
+                  "Crear cuenta"
+                )}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-xs text-white/30">
+              ¿Ya tienes cuenta?{" "}
+              <Link to="/login" className="text-white/70 font-medium hover:text-white transition-colors">
+                Inicia sesión
+              </Link>
+            </p>
+          </div>
+
+          {/* Panel derecho — imagen */}
+          <div
+            className="hidden lg:flex lg:w-1/2 flex-col justify-end p-10 relative overflow-hidden"
+            style={{
+              backgroundImage: `url(${imagenDerecha})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              borderLeft: "1px solid rgba(255,255,255,0.1)",
+              filter: "grayscale(100%)",
+            }}
+          >
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="relative z-10 space-y-2">
+              <p className="text-white/50 text-xs uppercase tracking-widest font-medium">
+                Plataforma profesional
+              </p>
+              <h3 className="text-white text-2xl font-bold leading-snug">
+                Gestiona tus citas y clientes desde un solo lugar
+              </h3>
+            </div>
+          </div>
         </div>
       </div>
     </div>

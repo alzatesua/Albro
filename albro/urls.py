@@ -11,4 +11,5 @@ urlpatterns = [
     #path('api/citas/', include('citas.urls')),
     #path('api/subastas/', include('subastas.urls')),
     #path('api/cola/', include('cola.urls')),
+    path('api/auth/', include('google_auth.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

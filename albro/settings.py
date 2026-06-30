@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     'citas',
     'subastas',
     'cola',
+    # Apps de google auth
+    'google_auth',
 ]
 
 MIDDLEWARE = [

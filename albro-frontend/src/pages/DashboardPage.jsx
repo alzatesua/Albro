@@ -165,6 +165,8 @@ const DashboardPage = () => {
             </span>
           </div>
 
+          
+
           <Button
             variant="outline" size="sm"
             onClick={() => { limpiarSesion(); navigate("/login"); }}
@@ -177,18 +179,20 @@ const DashboardPage = () => {
       </header>
 
       {/* Contenido */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-10 pb-36">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-            Hola, {usuario?.nombre}
-          </h1>
-          <p className="text-zinc-400 dark:text-zinc-500 text-sm mt-1">
-            {esProfesional ? "Gestiona tu agenda y tus clientes" : "¿Qué quieres hacer hoy?"}
-          </p>
-        </div>
+      <main className={seccionActiva === "mapa" ? "flex-1" : "flex-1 max-w-5xl w-full mx-auto px-6 py-10 pb-36"}>
+        {seccionActiva !== "mapa" && (
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
+              Hola, {usuario?.nombre}
+            </h1>
+            <p className="text-zinc-400 dark:text-zinc-500 text-sm mt-1">
+              {esProfesional ? "Gestiona tu agenda y tus clientes" : "¿Qué quieres hacer hoy?"}
+            </p>
+          </div>
+        )}
 
         {/* Sección activa */}
-        <div className={`bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden ${seccionActiva === "mapa" ? "" : "p-8 min-h-64"}`}>
+        <div className={seccionActiva === "mapa" ? "" : "bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-8 min-h-64"}>
           {secciones[seccionActiva]}
         </div>
       </main>

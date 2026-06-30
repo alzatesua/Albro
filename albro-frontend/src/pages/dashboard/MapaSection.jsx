@@ -1,72 +1,89 @@
+// MapaSection.jsx — migrado a Leaflet + OpenStreetMap
 import { useEffect, useRef, useState } from "react";
-import { getGeocodingApiKey } from "@/services/api";
+import { Search, CalendarClock } from "lucide-react";
+import ModalBuscarServicio from "./ModalBuscarServicio";
 
 const ZOOM_DEFAULT = 15;
 
+
+// Fix para el ícono default de Leaflet con Vite/webpack
+const fixLeafletIcons = () => {
+  import("leaflet").then((L) => {
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    });
+  });
+};
+
+// ─── Mapa principal ─────────────────────────────────────────────────────────
 const MapaSection = () => {
   const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null); // evita doble init en StrictMode
   const [estado, setEstado] = useState({ cargando: true, error: null, listo: false });
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [textoBusqueda, setTextoBusqueda] = useState("");
+  const [animarAgendar, setAnimarAgendar] = useState(false);
 
   useEffect(() => {
-    const apiKey = getGeocodingApiKey();
+    // Evita reinicializar si ya existe instancia
+    if (mapInstanceRef.current) return;
 
-    if (!apiKey) {
-      setEstado({ cargando: false, error: "API key no configurada. Agrega VITE_GOOGLE_GEOCODING_API_KEY en tu .env", listo: false });
-      return;
-    }
+    fixLeafletIcons();
 
-    const callbackName = "__albro_maps_ready__";
-
-    const iniciarMapa = () => {
+    const iniciarMapa = async () => {
       if (!navigator.geolocation) {
         setEstado({ cargando: false, error: "Tu navegador no soporta geolocalización.", listo: false });
         return;
       }
 
       navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const { latitude: lat, longitude: lng } = pos.coords;
-
+        async ({ coords: { latitude: lat, longitude: lng } }) => {
           if (!mapRef.current) return;
 
-          const { Map } = await window.google.maps.importLibrary("maps");
-          const { AdvancedMarkerElement } = await window.google.maps.importLibrary("marker");
+          const L = (await import("leaflet")).default;
+          await import("leaflet/dist/leaflet.css");
 
-          const map = new Map(mapRef.current, {
-            center: { lat, lng },
+          const map = L.map(mapRef.current, {
+            center: [lat, lng],
             zoom: ZOOM_DEFAULT,
-            mapId: "albro_map",
-            streetViewControl: false,
-            mapTypeControl: false,
+            zoomControl: true,
           });
 
-          const pin = document.createElement("div");
-          pin.style.cssText = `
-            width: 18px; height: 18px;
-            border-radius: 50%;
-            background: #18181b;
-            border: 3px solid #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-          `;
+          // Tiles de OpenStreetMap
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            maxZoom: 19,
+          }).addTo(map);
 
-          const marker = new AdvancedMarkerElement({
-            map,
-            position: { lat, lng },
-            title: "Tu ubicación",
-            content: pin,
+          // Marcador personalizado tipo avatar (tu ubicación)
+          const tuUbicacionIcon = L.divIcon({
+            className: "",
+            html: `
+              <div style="
+                width: 18px; height: 18px;
+                border-radius: 50%;
+                background: #18181b;
+                border: 3px solid #fff;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+              "></div>
+            `,
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
           });
 
-          const infoWindow = new window.google.maps.InfoWindow({
-            content: `
+          L.marker([lat, lng], { icon: tuUbicacionIcon })
+            .addTo(map)
+            .bindPopup(`
               <div style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b">
                 <strong>📍 Estás aquí</strong><br/>
                 <span style="color:#71717a">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
               </div>
-            `,
-          });
+            `);
 
-          marker.addEventListener("gmp-click", () => infoWindow.open(map, marker));
-
+          mapInstanceRef.current = map;
           setEstado({ cargando: false, error: null, listo: true });
         },
         (err) => {
@@ -81,78 +98,107 @@ const MapaSection = () => {
       );
     };
 
-    if (window.google?.maps) {
-      iniciarMapa();
-      return;
-    }
-
-    window[callbackName] = iniciarMapa;
-
-    if (!document.getElementById("google-maps-script")) {
-      const script = document.createElement("script");
-      script.id = "google-maps-script";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async&libraries=marker&callback=${callbackName}`;
-      script.async = true;
-      script.onerror = () =>
-        setEstado({ cargando: false, error: "Error al cargar Google Maps. Verifica tu API key.", listo: false });
-      document.head.appendChild(script);
-    }
+    iniciarMapa();
 
     return () => {
-      delete window[callbackName];
+      // Cleanup al desmontar
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
     };
   }, []);
 
+  useEffect(() => {
+    if (!estado.listo) return;
+
+    const intervalo = setInterval(() => {
+      setAnimarAgendar(true);
+      // Quita la clase después de que termine la animación (rubberBand dura ~1s)
+      setTimeout(() => setAnimarAgendar(false), 1000);
+    }, 8000);
+
+    return () => clearInterval(intervalo);
+  }, [estado.listo]);
+
   const reintentar = () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
     setEstado({ cargando: true, error: null, listo: false });
-    const existing = document.getElementById("google-maps-script");
-    if (existing) existing.remove();
-    window.google = undefined;
-    setTimeout(() => window.location.reload(), 100);
   };
 
+  const handleBuscar = ({ categoriaSel, servicioSel, precio }) => {
+    // TODO: conectar con backend para filtrar profesionales en el mapa
+    console.log("Buscar profesionales con:", { categoriaSel, servicioSel, precio });
+    setModalAbierto(false);
+  };
+
+
+
   return (
-    <div className="flex flex-col">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-zinc-200 dark:border-zinc-800">
-        <h2 className="text-base font-semibold text-zinc-800 dark:text-zinc-100">Mapa</h2>
-        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
-          Encuentra profesionales cerca de ti
-        </p>
-      </div>
+    <div style={{ position: "fixed", inset: 0, top: "65px", bottom: "0px", zIndex: 1 }}>
+      {estado.cargando && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 10 }}
+          className="flex flex-col items-center justify-center gap-3 bg-zinc-50 dark:bg-zinc-900">
+          <span className="text-4xl animate-pulse">🗺️</span>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Obteniendo tu ubicación…</p>
+        </div>
+      )}
+      {!estado.cargando && estado.error && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 10 }}
+          className="flex flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-900 px-6 text-center">
+          <span className="text-4xl">⚠️</span>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-xs leading-relaxed">{estado.error}</p>
+          <button onClick={reintentar}
+            className="text-xs px-4 py-2 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-80 transition-opacity">
+            Reintentar
+          </button>
+        </div>
+      )}
 
-      {/* Contenedor con altura fija — Google Maps requiere alto explícito en píxeles */}
-      <div style={{ position: "relative", height: "480px" }}>
+      {/* Barra de búsqueda flotante centrada */}
+      {estado.listo && (
+        <div
+          style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", width: "min(90%, 480px)", zIndex: 20 }}
+          className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full px-4 py-3 flex items-center gap-2.5 shadow-lg"
+        >
+          <Search size={17} className="text-zinc-400 dark:text-zinc-500 shrink-0" />
+          <input
+            type="text"
+            value={textoBusqueda}
+            onChange={(e) => setTextoBusqueda(e.target.value)}
+            placeholder="Buscar profesionales, servicios o categorías"
+            className="flex-1 bg-transparent text-sm text-zinc-700 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+          />
+        </div>
+      )}
 
-        {/* Cargando */}
-        {estado.cargando && (
-          <div style={{ position: "absolute", inset: 0, zIndex: 10 }}
-            className="flex flex-col items-center justify-center gap-3 bg-zinc-50 dark:bg-zinc-900 rounded-b-2xl">
-            <span className="text-4xl animate-pulse">🗺️</span>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Obteniendo tu ubicación…</p>
-          </div>
-        )}
+      {/* Botón Agendar flotante */}
+      {estado.listo && (
+        <button
+          onClick={() => setModalAbierto(true)}
+          style={{ position: "absolute", top: 16, right: 16, zIndex: 20, whiteSpace: "nowrap" }}
+          className={`bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-sm font-medium px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 border-2 border-black ${
+            animarAgendar ? "animate__animated animate__rubberBand" : ""
+          }`}
+        >
+          <CalendarClock size={15} />
+          Agendar
+        </button>
+      )}
+      <div
+        ref={mapRef}
+        style={{ width: "100%", height: "100%", position: "relative", zIndex: 0, isolation: "isolate" }}
+      />
 
-        {/* Error */}
-        {!estado.cargando && estado.error && (
-          <div style={{ position: "absolute", inset: 0, zIndex: 10 }}
-            className="flex flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-900 px-6 text-center rounded-b-2xl">
-            <span className="text-4xl">⚠️</span>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-xs leading-relaxed">
-              {estado.error}
-            </p>
-            <button
-              onClick={reintentar}
-              className="text-xs px-4 py-2 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-80 transition-opacity"
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
-
-        {/* Div del mapa — width y height en style inline, no Tailwind */}
-        <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-      </div>
+      {modalAbierto && (
+        <ModalBuscarServicio
+          onClose={() => setModalAbierto(false)}
+          onBuscar={handleBuscar}
+        />
+      )}
     </div>
   );
 };

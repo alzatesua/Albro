@@ -44,3 +44,37 @@ class Servicio(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class ServicioProfesional(models.Model):
+    """
+    Relación entre un profesional y los servicios que ofrece, con su precio.
+    """
+    profesional = models.ForeignKey(
+        'profesionales.PerfilProfesional',
+        on_delete=models.CASCADE,
+        related_name='servicios_ofrecidos',
+    )
+    servicio = models.ForeignKey(
+        Servicio,
+        on_delete=models.CASCADE,
+        related_name='profesionales_que_ofrecen',
+    )
+    precio = models.DecimalField(max_digits=10, decimal_places=2)
+    duracion_minutos = models.PositiveIntegerField(default=30)
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['precio']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['profesional', 'servicio'],
+                name='servicio_unico_por_profesional',
+            ),
+        ]
+        verbose_name = 'servicio ofrecido por profesional'
+        verbose_name_plural = 'servicios ofrecidos por profesionales'
+
+    def __str__(self):
+        return f'{self.profesional} → {self.servicio} (${self.precio})'

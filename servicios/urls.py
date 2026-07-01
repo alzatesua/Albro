@@ -5,6 +5,8 @@ from .views import (
     CategoriaServicioDetalleView,
     CategoriaServicioListCreateView,
     ServicioListCreateView,
+    ProfesionalesView,
+    MisServiciosView,
 )
 
 urlpatterns = [
@@ -16,4 +18,6 @@ urlpatterns = [
         name='asociar-servicio-categoria',
     ),
     path('servicios/', ServicioListCreateView.as_view(), name='servicios'),
+    path('profesionales/', ProfesionalesView.as_view(), name='profesionales-lista'),
+    path('mis-servicios/', MisServiciosView.as_view(), name='mis-servicios'),
 ]

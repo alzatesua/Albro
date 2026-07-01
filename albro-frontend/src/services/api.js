@@ -69,3 +69,21 @@ export const registrarProfesional = (datos) =>
 
 export const getGeocodingApiKey = () =>
   import.meta.env.VITE_GOOGLE_GEOCODING_API_KEY || "";
+
+
+// ─── Servicios ────────────────────────────────────────────────────────────────
+
+export const getCategorias = () =>
+  request("/servicios/categorias/");
+
+export const getServiciosPorCategoria = (categoriaId) =>
+  request(`/servicios/servicios/?categoria=${categoriaId}`);
+
+// ─── Profesionales ────────────────────────────────────────────────────────────────
+export const getProfesionalesPorServicio = (servicioId) =>
+  request(`/servicios/profesionales/?servicio=${servicioId}`);
+
+
+// ─── Agendas ────────────────────────────────────────────────────────────────
+export const getAgendaProfesional = (profesionalId, servicioId, fecha) =>
+  request(`/profesionales/${profesionalId}/agenda/?servicio=${servicioId}&fecha=${fecha}`);

@@ -8,6 +8,8 @@ from .views import (
     RegistroProfesionalView,
     DepartamentosView, 
     MunicipiosView,
+    MisHorariosView,
+    AgendaProfesionalView,
 )
 
 urlpatterns = [
@@ -22,8 +24,7 @@ urlpatterns = [
         EstadoProfesionalDetalleView.as_view(),
         name='estado-profesional-detalle',
     ),
+    path('mis-horarios/', MisHorariosView.as_view(), name='mis-horarios'),
+    path('<int:profesional_id>/agenda/', AgendaProfesionalView.as_view(), name='agenda-profesional'),
 ]
-
-
-
 

@@ -3,7 +3,10 @@ import httpx
 
 from .models import EstadoAtencion, PerfilProfesional, Departamento, Municipio
 
-
+DIAS_VALIDOS = [
+    'lunes', 'martes', 'miercoles', 'jueves',
+    'viernes', 'sabado', 'domingo',
+]
 
 
 class EstadoAtencionSerializer(serializers.ModelSerializer):
@@ -219,3 +222,48 @@ class MunicipioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Municipio
         fields = ['id', 'nombre', 'departamento']
+
+
+class HorarioDiaSerializer(serializers.Serializer):
+    dia = serializers.ChoiceField(choices=DIAS_VALIDOS)
+    inicio = serializers.TimeField()
+    fin = serializers.TimeField()
+
+    def validate(self, data):
+        if data['inicio'] >= data['fin']:
+            raise serializers.ValidationError(
+                'La hora de inicio debe ser menor a la hora de fin.'
+            )
+        return data
+
+
+class HorariosAtencionSerializer(serializers.Serializer):
+    horarios = HorarioDiaSerializer(many=True)
+
+    def validate_horarios(self, value):
+        if not value:
+            raise serializers.ValidationError('Debes enviar al menos un horario.')
+
+        # Agrupar por día para detectar traslapes
+        por_dia = {}
+        for item in value:
+            por_dia.setdefault(item['dia'], []).append(item)
+
+        for dia, franjas in por_dia.items():
+            franjas_ordenadas = sorted(franjas, key=lambda f: f['inicio'])
+            for i in range(len(franjas_ordenadas) - 1):
+                actual = franjas_ordenadas[i]
+                siguiente = franjas_ordenadas[i + 1]
+                if actual['fin'] > siguiente['inicio']:
+                    raise serializers.ValidationError(
+                        f"Los horarios de '{dia}' se traslapan entre "
+                        f"{actual['inicio']}-{actual['fin']} y "
+                        f"{siguiente['inicio']}-{siguiente['fin']}."
+                    )
+        return value
+
+    def to_internal_value(self, data):
+        # Permite recibir directamente una lista, o {"horarios": [...]}
+        if isinstance(data, list):
+            data = {'horarios': data}
+        return super().to_internal_value(data)

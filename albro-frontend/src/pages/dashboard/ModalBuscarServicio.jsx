@@ -222,6 +222,7 @@ const ModalBuscarServicio = ({ onClose, onBuscar }) => {
   const atras = () => setPasoActual((p) => Math.max(p - 1, 1));
 
   const handleConfirmar = () => {
+    const usuarioActual = JSON.parse(localStorage.getItem("usuario"));
     const payload = {};
     if (categoriaSel) payload.categoria = categoriaSel;
     if (servicioSel) payload.servicio = servicioSel;
@@ -230,7 +231,7 @@ const ModalBuscarServicio = ({ onClose, onBuscar }) => {
     if (profesionalSel) payload.profesional = profesionalSel;
     if (fecha) payload.fecha = fecha;
     if (cupoSel) payload.horario = cupoSel;
-    if (usuario) payload.usuario = usuario.id; // Agregar el ID del usuario
+    if (usuarioActual) payload.usuario = usuarioActual.id; 
     console.log("Payload:", payload);
     onBuscar(payload);
   };

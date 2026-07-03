@@ -6,7 +6,8 @@ const AuthContext = createContext({
   cargando: true,
   guardarSesion: () => {},
   limpiarSesion: () => {},
-  usuarioActual: () => {},
+  usuarioActual: null,
+  setUsuarioActual: () => {},
 });
 
 export const AuthProvider = ({ children }) => {

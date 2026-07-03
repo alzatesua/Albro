@@ -8,7 +8,7 @@ urlpatterns = [
     path('api/usuarios/', include('usuarios.urls')),
     path('api/profesionales/', include('profesionales.urls')),
     path('api/servicios/', include('servicios.urls')),
-    #path('api/citas/', include('citas.urls')),
+    path('api/citas/', include('citas.urls')),  # <-- habilitado para crear citas
     #path('api/subastas/', include('subastas.urls')),
     #path('api/cola/', include('cola.urls')),
     path('api/auth/', include('google_auth.urls')),

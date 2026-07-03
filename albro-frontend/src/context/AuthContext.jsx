@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
-const AuthContext = createContext(null);
+const AuthContext = createContext({
+  usuario: null,
+  estaAutenticado: false,
+  cargando: true,
+  guardarSesion: () => {},
+  limpiarSesion: () => {},
+  usuarioActual: () => {},
+});
 
 export const AuthProvider = ({ children }) => {
   const [usuario, setUsuario] = useState(null);
@@ -26,6 +33,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("refresh_token", datos.refresh);
     localStorage.setItem("usuario", JSON.stringify(datos.usuario));
     setUsuario(datos.usuario);
+    setUsuarioActual(datos.usuario);
 
     // Agregar un listener para cuando el token se vence
     const tokenExpiration = datos.access_expires;
@@ -34,6 +42,14 @@ export const AuthProvider = ({ children }) => {
       // Token se vence en menos de 1 minuto, refrescar token
       refreshAccessToken();
     }
+  };
+
+  const usuarioActual = () => {
+    const usuarioGuardado = localStorage.getItem("usuario");
+    if (usuarioGuardado) {
+      return JSON.parse(usuarioGuardado);
+    }
+    return null;
   };
 
   const refreshAccessToken = async () => {

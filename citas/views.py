@@ -17,7 +17,7 @@ class CitaViewSet(viewsets.ModelViewSet):
     """
     queryset = Cita.objects.all()
     permission_classes = [permissions.IsAuthenticated]
-
+    
     def get_serializer_class(self):
         """
         Utilizamos CitaCreateSerializer para la creación (POST) y

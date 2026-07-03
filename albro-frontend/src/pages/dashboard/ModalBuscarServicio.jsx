@@ -230,8 +230,10 @@ const ModalBuscarServicio = ({ onClose, onBuscar }) => {
       profesionalSel,
       fecha,
       horario: cupoSel, // { hora_inicio, hora_fin, etiqueta }
+      busquedaProfesional,
+      agenda,
     };
-    console.log("Payload:", payload);
+    console.log("Payload completo:", payload);
     onBuscar(payload);
   };
 

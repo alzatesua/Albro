@@ -230,6 +230,7 @@ const ModalBuscarServicio = ({ onClose, onBuscar }) => {
     if (profesionalSel) payload.profesional = profesionalSel;
     if (fecha) payload.fecha = fecha;
     if (cupoSel) payload.horario = cupoSel;
+    if (usuario) payload.usuario = usuario.id; // Agregar el ID del usuario
     console.log("Payload:", payload);
     onBuscar(payload);
   };

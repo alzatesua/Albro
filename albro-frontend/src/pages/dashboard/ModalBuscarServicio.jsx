@@ -222,7 +222,7 @@ const ModalBuscarServicio = ({ onClose, onBuscar }) => {
   const atras = () => setPasoActual((p) => Math.max(p - 1, 1));
 
   const handleConfirmar = () => {
-    onBuscar({
+    const payload = {
       categoriaSel,
       servicioSel,
       modo,
@@ -230,7 +230,9 @@ const ModalBuscarServicio = ({ onClose, onBuscar }) => {
       profesionalSel,
       fecha,
       horario: cupoSel, // { hora_inicio, hora_fin, etiqueta }
-    });
+    };
+    console.log("Payload:", payload);
+    onBuscar(payload);
   };
 
   return (

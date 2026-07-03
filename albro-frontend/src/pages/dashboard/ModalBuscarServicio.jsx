@@ -222,18 +222,15 @@ const ModalBuscarServicio = ({ onClose, onBuscar }) => {
   const atras = () => setPasoActual((p) => Math.max(p - 1, 1));
 
   const handleConfirmar = () => {
-    const payload = {
-      categoriaSel,
-      servicioSel,
-      modo,
-      precio,
-      profesionalSel,
-      fecha,
-      horario: cupoSel, // { hora_inicio, hora_fin, etiqueta }
-      busquedaProfesional,
-      agenda,
-    };
-    console.log("Payload completo:", payload);
+    const payload = {};
+    if (categoriaSel) payload.categoria = categoriaSel;
+    if (servicioSel) payload.servicio = servicioSel;
+    if (modo) payload.modo = modo;
+    if (precio) payload.precio = precio;
+    if (profesionalSel) payload.profesional = profesionalSel;
+    if (fecha) payload.fecha = fecha;
+    if (cupoSel) payload.horario = cupoSel;
+    console.log("Payload:", payload);
     onBuscar(payload);
   };
 

@@ -36,3 +36,39 @@ class CitaCreateSerializer(serializers.ModelSerializer):
             'estado',
         ]
         read_only_fields = ('id', 'estado')
+
+
+class CitaSerializer(serializers.ModelSerializer):
+    """
+    Serializador usado para listar, obtener detalle, actualizar y eliminar citas.
+    Incluye todos los campos del modelo, pero mantiene `id` y `estado` como solo lectura.
+    """
+    # Mapeamos `usuario` → `cliente` para que el frontend siga usando el mismo nombre.
+    usuario = serializers.PrimaryKeyRelatedField(
+        source='cliente',
+        queryset=Cita._meta.get_field('cliente').related_model.objects.all()
+    )
+    categoria = serializers.PrimaryKeyRelatedField(
+        queryset=Cita._meta.get_field('categoria').related_model.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = Cita
+        fields = [
+            'id',
+            'categoria',
+            'fecha',
+            'etiqueta',
+            'modo',
+            'profesional',
+            'servicio',
+            'usuario',
+            'hora_inicio',
+            'hora_fin',
+            'estado',
+            'fecha_creacion',
+            'fecha_actualizacion',
+        ]
+        read_only_fields = ('id', 'estado', 'fecha_creacion', 'fecha_actualizacion')

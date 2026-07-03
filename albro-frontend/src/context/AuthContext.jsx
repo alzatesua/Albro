@@ -35,7 +35,6 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("usuario", JSON.stringify(datos.usuario));
     localStorage.setItem("id_usuario", datos.usuario.id);
     setUsuario(datos.usuario);
-    setUsuarioActual(datos.usuario);
 
     // Agregar un listener para cuando el token se vence
     const tokenExpiration = datos.access_expires;

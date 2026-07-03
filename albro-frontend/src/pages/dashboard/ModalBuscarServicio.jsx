@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { Check, Gavel, UserSearch, Search, ArrowLeft, ArrowRight, Loader2, CalendarDays, Clock } from "lucide-react";
 import {
   getCategorias,
@@ -69,6 +70,7 @@ const Stepper = ({ pasoActual, pasos }) => (
 
 // ─── Modal de búsqueda ──────────────────────────────────────────────────────
 const ModalBuscarServicio = ({ onClose, onBuscar }) => {
+  const { usuario } = useAuth();
   const [pasoActual, setPasoActual] = useState(1);
 
   const [categorias, setCategorias] = useState([]);
@@ -222,7 +224,6 @@ const ModalBuscarServicio = ({ onClose, onBuscar }) => {
   const atras = () => setPasoActual((p) => Math.max(p - 1, 1));
 
   const handleConfirmar = () => {
-    const usuarioActual = JSON.parse(localStorage.getItem("usuario"));
     const payload = {};
     if (categoriaSel) payload.categoria = categoriaSel;
     if (servicioSel) payload.servicio = servicioSel;
@@ -231,7 +232,7 @@ const ModalBuscarServicio = ({ onClose, onBuscar }) => {
     if (profesionalSel) payload.profesional = profesionalSel;
     if (fecha) payload.fecha = fecha;
     if (cupoSel) payload.horario = cupoSel;
-    if (usuarioActual && usuarioActual.usuario) payload.usuario = usuarioActual.usuario.id; 
+    if (usuario?.id) payload.usuario = usuario.id;
     console.log("Payload:", payload);
     onBuscar(payload);
   };

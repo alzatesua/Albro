@@ -26,6 +26,36 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("refresh_token", datos.refresh);
     localStorage.setItem("usuario", JSON.stringify(datos.usuario));
     setUsuario(datos.usuario);
+
+    // Agregar un listener para cuando el token se vence
+    const tokenExpiration = datos.access_expires;
+    const currentTime = new Date().getTime() / 1000;
+    if (tokenExpiration - currentTime < 60) {
+      // Token se vence en menos de 1 minuto, refrescar token
+      refreshAccessToken();
+    }
+  };
+
+  const refreshAccessToken = async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/usuarios/refresh-token/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh: localStorage.getItem('refresh_token') }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        guardarSesion(data);
+      } else {
+        // Token de refresh inválido, redirigir al login
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const limpiarSesion = () => {

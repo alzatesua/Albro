@@ -6,5 +6,45 @@ source venv/bin/activate
 
 python manage.py runserver 8006
 
+python manage.py runserver 0.0.0.0:8006
+daphne -b 0.0.0.0 -p 8006 albro.asgi:application
+probar
+wscat -c "ws://localhost:8006/ws/citas/?ticket=EL_TICKET"
 
-aider
+aiderpy
+
+
+
+
+
+
+
+
+PARA TENER EN CUANTA CUANDO SE SUBA A PRODUCCION
+
+1. CHANNEL_LAYERS → Redis
+
+ Confirmar que channels-redis esté instalado en el venv de producción: pip show channels-redis
+ Verificar que el Redis de producción tenga contraseña si está expuesto en red (no solo localhost)
+ Si usas una DB de Redis distinta para CACHES (tickets) y CHANNEL_LAYERS, confirma que no se pisen entre sí (por ejemplo /1 para cache, /2 para channel layer)
+ Probar que REDIS_HOST esté bien seteado en el .env de producción (ahora mismo usa os.getenv('REDIS_HOST', 'localhost') — si Redis vive en otro host/contenedor, localhost fallará silenciosamente)
+
+2. Rate limiting en /api/ws-ticket/
+
+ Verificar que 10/minute sea suficiente para tu patrón real de reconexión del frontend (si reconecta cada 5s por ejemplo, se agotará rápido — ajusta el número antes de salir a producción, no después)
+ Confirmar que el throttle usa UserRateThrottle (por usuario autenticado) y no AnonRateThrottle — como el endpoint requiere IsAuthenticated, esto ya está bien, pero verifícalo tras el despliegue con un usuario real
+ Si tienes múltiples workers de Daphne/Gunicorn, el throttle de DRF usa el cache de Django para contar peticiones — confirma que ese cache (Redis) sea compartido entre todos los procesos, si no, el límite no se respeta de forma consistente
+
+3. Daphne + Nginx en producción
+
+ Probar el systemctl status albro-daphne tras el primer despliegue, confirmar que arranca solo si el servidor reinicia
+ Verificar que el puerto 8006 de Daphne no esté expuesto directamente a internet — solo nginx debe ser público, Daphne debe escuchar en 127.0.0.1
+ Probar específicamente la ruta /ws/ a través de nginx con wss:// (no solo ws:// local) para confirmar que el proxy y el certificado SSL no rompen el handshake
+ Confirmar el proxy_read_timeout en nginx — si tus WS se desconectan solos cada 60s en producción, es casi siempre por este valor
+
+4. Notificación al grupo citas_staff
+
+ Decidir si el broadcast a citas_staff debe ser solo para tipo == "creada" o para todos los tipos (actualmente solo "creada" — confirma que es lo que necesita el dashboard)
+ Probar con más de un usuario staff conectado simultáneamente que todos reciban el evento (no solo el primero que se conectó)
+ Revisar el volumen esperado: si tienes muchos usuarios staff conectados todo el día, cada cita nueva dispara un group_send a todos ellos — confirma que esto no sature Redis si el volumen de citas es alto
+ Verificar que un usuario que deja de ser staff (se le quita el permiso) sea desconectado o al menos no siga en el grupo tras su próxima reconexión (con tu código actual, se resuelve solo porque is_staff_group se calcula en cada connect(), pero si el usuario nunca se desconecta, seguiría en el grupo con permisos viejos hasta que reconecte)

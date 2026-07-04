@@ -6,6 +6,16 @@ from django.db.models import Q
 from .models import Cita
 from .serializers import CitaSerializer, CitaCreateSerializer
 
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+
+from .ws_tickets import generar_ticket
+from .notifications import notificar_cita
+from rest_framework.throttling import UserRateThrottle
+
+from django.db import IntegrityError
+from rest_framework.exceptions import ValidationError
+
 
 class CitaViewSet(viewsets.ModelViewSet):
     """
@@ -19,47 +29,49 @@ class CitaViewSet(viewsets.ModelViewSet):
     - cancel : POST   /api/citas/{id}/cancel/   (cambia el estado a "cancelada")
     """
     queryset = Cita.objects.all()
-    # Permitimos acceso de solo lectura a usuarios no autenticados,
-    # pero cualquier operación de escritura sigue requiriendo autenticación.
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_serializer_class(self):
-        """
-        Utilizamos CitaCreateSerializer para la creación (POST) y
-        CitaSerializer para el resto de operaciones.
-        """
         if self.action == 'create':
             return CitaCreateSerializer
         return CitaSerializer
 
     def get_queryset(self):
-        """
-        Filtramos las citas que el usuario puede ver:
-        - Si el usuario es staff o superuser, puede ver todas.
-        - Si el usuario está autenticado, ve las citas donde es cliente
-          O las citas donde es el profesional asignado.
-        - Si el usuario es anónimo, devolvemos todas las citas (solo lectura).
-        """
         user = self.request.user
 
         if not user.is_authenticated:
-            # Usuario anónimo: solo lectura, devolvemos todas las citas.
             return Cita.objects.all()
 
         if user.is_staff or user.is_superuser:
             return Cita.objects.all()
 
-        # Cliente dueño de la cita O profesional asignado a la cita
         return Cita.objects.filter(
             Q(cliente=user) | Q(profesional__usuario=user)
         ).distinct()
 
     def perform_create(self, serializer):
         """
-        Guardamos la cita. El serializer ya mapea `usuario` → `cliente`,
-        por lo que no es necesario hacer nada extra.
+        Guardamos la cita y notificamos por WebSocket.
         """
-        serializer.save()
+        try:
+            cita = serializer.save()
+        except IntegrityError:
+            raise ValidationError(
+                {"detail": "Ya existe una cita activa para este profesional en la misma fecha y hora."}
+            )
+        notificar_cita(cita, tipo="creada")
+
+    def perform_update(self, serializer):
+        """
+        Actualizamos la cita y notificamos por WebSocket.
+        """
+        try:
+            cita = serializer.save()
+        except IntegrityError:
+            raise ValidationError(
+                {"detail": "Ya existe una cita activa para este profesional en la misma fecha y hora."}
+            )
+        notificar_cita(cita, tipo="actualizada")
 
     def destroy(self, request, *args, **kwargs):
         """
@@ -80,11 +92,11 @@ class CitaViewSet(viewsets.ModelViewSet):
         """
         Endpoint para cancelar (inactivar) una cita.
         Cambia el campo `estado` a "cancelada".
-        Sólo el cliente propietario o un usuario staff/superuser pueden hacerlo.
+        Sólo el cliente propietario, el profesional asignado, o un
+        usuario staff/superuser pueden hacerlo.
         """
         cita = self.get_object()
 
-        # Verificar permisos de cancelación (cliente dueño o profesional asignado)
         es_cliente = cita.cliente_id == request.user.id
         es_profesional = (
             hasattr(request.user, 'perfil_profesional')
@@ -104,17 +116,33 @@ class CitaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Si ya está cancelada, devolver mensaje informativo
         if cita.estado == 'cancelada':
             return Response(
                 {"detail": "La cita ya está cancelada."},
                 status=status.HTTP_200_OK,
             )
 
-        # Cambiar estado y guardar
         cita.estado = 'cancelada'
         cita.save()
+        notificar_cita(cita, tipo="cancelada")
 
-        # Serializar la cita actualizada y devolverla
         serializer = self.get_serializer(cita)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class WSTicketThrottle(UserRateThrottle):
+    scope = 'ws_ticket'
+
+
+class WSTicketView(APIView):
+    """
+    Endpoint que emite un ticket de un solo uso para autenticar
+    la conexión WebSocket, sin exponer el JWT en la URL.
+    GET /api/ws-ticket/
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [WSTicketThrottle]
+
+    def get(self, request):
+        ticket = generar_ticket(request.user.id)
+        return Response({"ticket": ticket, "expires_in": 15})

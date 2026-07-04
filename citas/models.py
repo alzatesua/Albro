@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 
 
 class Cita(models.Model):
@@ -58,6 +59,13 @@ class Cita(models.Model):
         ordering = ['fecha', 'hora_inicio']
         verbose_name = 'cita'
         verbose_name_plural = 'citas'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['profesional', 'fecha', 'hora_inicio'],
+                condition=~Q(estado='cancelada'),
+                name='unico_horario_profesional_activo',
+            )
+        ]
 
     def __str__(self):
         return f'{self.cliente} con {self.profesional} - {self.fecha} {self.hora_inicio}'

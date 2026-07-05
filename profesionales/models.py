@@ -28,6 +28,11 @@ class PerfilProfesional(models.Model):
     longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     nombre_local = models.CharField(max_length=150)
     descripcion = models.TextField(blank=True)
+    imagen_perfil = models.ImageField(          # ← NUEVO
+        upload_to='profesionales/perfiles/%Y/%m/',
+        blank=True,
+        null=True,
+    )
     activo = models.BooleanField(default=True)
     horarios_atencion = models.JSONField(default=list, blank=True)
     estado = models.ForeignKey(

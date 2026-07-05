@@ -125,12 +125,14 @@ class ProfesionalListaSerializer(serializers.ModelSerializer):
             'nombre',
             'apellido',
             'nombre_local',
-            'ubicacion',
+            'direccion',      
+            'ubicacion',  
             'latitud',
             'longitud',
             'estado',
             'precio_servicio',
             'servicios',
+            'imagen_perfil',
         ]
 
     def get_precio_servicio(self, obj):

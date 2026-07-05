@@ -1,6 +1,7 @@
 // MapaSection.jsx — migrado a Leaflet + OpenStreetMap
 import { useEffect, useRef, useState } from "react";
 import { Search, CalendarClock } from "lucide-react";
+import Toast from "./Toast";
 import ModalBuscarServicio from "./ModalBuscarServicio";
 
 const ZOOM_DEFAULT = 15;
@@ -26,6 +27,20 @@ const MapaSection = () => {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [textoBusqueda, setTextoBusqueda] = useState("");
   const [animarAgendar, setAnimarAgendar] = useState(false);
+
+  const [toast, setToast] = useState(null);
+  const toastTimeoutRef = useRef(null);
+
+  const mostrarToast = (mensaje, tipo = "success") => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ mensaje, tipo, key: Date.now() });
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 3500);
+  };
+
+  const cerrarToast = () => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast(null);
+  };
 
   useEffect(() => {
     // Evita reinicializar si ya existe instancia
@@ -139,6 +154,7 @@ const MapaSection = () => {
 
   return (
     <div style={{ position: "fixed", inset: 0, top: "65px", bottom: "0px", zIndex: 1 }}>
+      <Toast toast={toast} onClose={cerrarToast} />
       {estado.cargando && (
         <div style={{ position: "absolute", inset: 0, zIndex: 10 }}
           className="flex flex-col items-center justify-center gap-3 bg-zinc-50 dark:bg-zinc-900">
@@ -190,13 +206,17 @@ const MapaSection = () => {
       )}
       <div
         ref={mapRef}
-        style={{ width: "100%", height: "100%", position: "relative", zIndex: 0, isolation: "isolate" }}
+        style={{ width: "100%", height: "100%", position: "relative", zIndex: 0 }}
       />
 
       {modalAbierto && (
         <ModalBuscarServicio
           onClose={() => setModalAbierto(false)}
           onBuscar={handleBuscar}
+          onNotificar={(notificacion) => {
+            if (!notificacion) return cerrarToast();
+            mostrarToast(notificacion.mensaje, notificacion.tipo);
+          }}
         />
       )}
     </div>

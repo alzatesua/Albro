@@ -71,6 +71,61 @@ export const registrarProfesional = (datos) =>
     body: JSON.stringify(datos),
   });
 
+export const actualizarImagenPerfil = (archivo) => {
+  const formData = new FormData();
+  formData.append("imagen_perfil", archivo);
+
+  return requestFormData("/profesionales/perfil/", formData, {
+    method: "PATCH",
+  });
+};
+
+export const actualizarDatosPersonales = (datos) =>
+  request("/profesionales/perfil/", {
+    method: "PATCH",
+    body: JSON.stringify(datos),
+  });
+
+
+
+// Helper para peticiones con FormData (uploads de archivos)
+const requestFormData = async (endpoint, formData, options = {}) => {
+  const token = localStorage.getItem("access_token");
+
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    headers: {
+      // OJO: NO poner "Content-Type" aquí, el navegador debe
+      // setearlo automáticamente con el boundary correcto
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+    ...options,
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      window.location.href = '/login';
+    } else {
+      const mensaje =
+        data?.detail ||
+        data?.detalle ||
+        data?.message ||
+        Object.entries(data)
+          .map(([campo, errs]) => `${campo}: ${Array.isArray(errs) ? errs.join(", ") : errs}`)
+          .join(" · ");
+
+      const err = new Error(mensaje);
+      err.status = res.status;
+      throw err;
+    }
+  }
+
+  return data;
+};
+
+
 
 export const getGeocodingApiKey = () =>
   import.meta.env.VITE_GOOGLE_GEOCODING_API_KEY || "";
@@ -84,6 +139,14 @@ export const getCategorias = () =>
 export const getServiciosPorCategoria = (categoriaId) =>
   request(`/servicios/servicios/?categoria=${categoriaId}`);
 
+export const getMisServicios = () =>
+  request("/servicios/mis-servicios/");
+
+export const eliminarServicio = (servicioId) =>
+  request(`/servicios/mis-servicios/?servicio_id=${servicioId}`, {
+    method: "DELETE",
+  });
+
 // ─── Profesionales ────────────────────────────────────────────────────────────────
 export const getProfesionalesPorServicio = (servicioId) =>
   request(`/servicios/profesionales/?servicio=${servicioId}`);
@@ -92,3 +155,15 @@ export const getProfesionalesPorServicio = (servicioId) =>
 // ─── Agendas ────────────────────────────────────────────────────────────────
 export const getAgendaProfesional = (profesionalId, servicioId, fecha) =>
   request(`/profesionales/${profesionalId}/agenda/?servicio=${servicioId}&fecha=${fecha}`);
+
+
+
+
+export const crearCita = (payload) =>
+  request("/citas/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+
+

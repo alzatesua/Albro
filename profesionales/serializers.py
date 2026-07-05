@@ -129,6 +129,7 @@ class PerfilProfesionalSerializer(serializers.ModelSerializer):
             'direccion', 'ubicacion',
             'latitud', 'longitud',
             'nombre_local', 'descripcion',
+            'imagen_perfil',
             'activo', 'horarios_atencion',
             'estado', 'estado_id',
             'departamento_id', 'municipio_id',   # ← nuevos
@@ -139,6 +140,7 @@ class PerfilProfesionalSerializer(serializers.ModelSerializer):
             'latitud':   {'required': False, 'allow_null': True},
             'longitud':  {'required': False, 'allow_null': True},
             'ubicacion': {'required': False},
+            'imagen_perfil': {'required': False},
         }
 
     def validate(self, attrs):

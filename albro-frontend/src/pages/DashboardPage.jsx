@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   LogOut, User, Scissors, Map, Briefcase, UserCheck,
-  Settings, CalendarClock, Users, Sun, Moon
+  Settings, CalendarClock, Users, Sun, Moon,
+  CheckCircle2, XCircle
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
@@ -41,15 +42,6 @@ const menuProfesional = [
   { icono: CalendarClock, label: "Agenda",       key: "agenda" },
   { icono: Users,         label: "Mis clientes", key: "clientes" },
 ];
-
-const secciones = {
-  mapa:        <MapaSection />,
-  servicios:   <ServiciosSection />,
-  profesional: <SerProfesionalSection />,
-  perfil:      <PerfilSection />,
-  agenda:      <AgendaSection />,
-  clientes:    <ClientesSection />,
-};
 
 // ─── Dock item ────────────────────────────────────────────────────────────────
 const DockItem = ({ icono: Icono, label, activo, onClick, mouseX, itemRef }) => {
@@ -126,15 +118,53 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const [dark, toggleDark] = useDarkMode();
 
+  // ── NUEVO: estado global de notificación ────────────────────────────────
+  const [notificacion, setNotificacion] = useState(null); // { tipo: "exito" | "error", mensaje }
+
+  useEffect(() => {
+    if (!notificacion) return;
+    const t = setTimeout(() => setNotificacion(null), 3500);
+    return () => clearTimeout(t);
+  }, [notificacion]);
+  // ──────────────────────────────────────────────────────────────────────────
+
   const esProfesional = usuario?.rol === "profesional";
   const menu = esProfesional ? menuProfesional : menuCliente;
   const [seccionActiva, setSeccionActiva] = useState(menu[0].key);
 
-  // Verifica si el profesional ya completó su perfil
   const { necesitaPerfil, marcarCompleto } = usePerfilProfesional(usuario?.rol);
+
+  // ── Movido acá dentro para poder pasar setNotificacion como prop ────────
+  const secciones = {
+    mapa:        <MapaSection />,
+    servicios:   <ServiciosSection onNotificar={setNotificacion} />,
+    profesional: <SerProfesionalSection />,
+    perfil:      <PerfilSection />,
+    agenda:      <AgendaSection />,
+    clientes:    <ClientesSection />,
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col transition-colors duration-300">
+
+      {/* ── NUEVO: Toast global, flota sobre todo el Dashboard ── */}
+      {notificacion && (
+        <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2">
+          <div
+            className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium shadow-lg animate__animated animate__fadeInDown
+              ${notificacion.tipo === "exito"
+                ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
+                : "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"}`}
+          >
+            {notificacion.tipo === "exito" ? (
+              <CheckCircle2 size={18} className="shrink-0" />
+            ) : (
+              <XCircle size={18} className="shrink-0" />
+            )}
+            {notificacion.mensaje}
+          </div>
+        </div>
+      )}
 
       {/* Navbar */}
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
@@ -165,8 +195,6 @@ const DashboardPage = () => {
             </span>
           </div>
 
-          
-
           <Button
             variant="outline" size="sm"
             onClick={() => { limpiarSesion(); navigate("/login"); }}
@@ -179,28 +207,16 @@ const DashboardPage = () => {
       </header>
 
       {/* Contenido */}
-      <main className={seccionActiva === "mapa" ? "flex-1" : "flex-1 max-w-5xl w-full mx-auto px-6 py-10 pb-36"}>
-        {seccionActiva !== "mapa" && (
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-              Hola, {usuario?.nombre}
-            </h1>
-            <p className="text-zinc-400 dark:text-zinc-500 text-sm mt-1">
-              {esProfesional ? "Gestiona tu agenda y tus clientes" : "¿Qué quieres hacer hoy?"}
-            </p>
-          </div>
-        )}
+      <main className={seccionActiva === "mapa" ? "flex-1" : "bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-8 min-h-64"}>
+        {seccionActiva !== "mapa" && <div className="mb-8" />}
 
-        {/* Sección activa */}
         <div className={seccionActiva === "mapa" ? "" : "bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-8 min-h-64"}>
           {secciones[seccionActiva]}
         </div>
       </main>
 
-      {/* Dock */}
       <Dock menu={menu} seccionActiva={seccionActiva} setSeccionActiva={setSeccionActiva} />
 
-      {/* Modal bloqueante — solo aparece si es profesional y no tiene perfil aún */}
       {necesitaPerfil === true && (
         <ModalRegistroProfesional onCompleto={marcarCompleto} />
       )}

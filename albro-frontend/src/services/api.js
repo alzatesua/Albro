@@ -86,6 +86,12 @@ export const actualizarDatosPersonales = (datos) =>
     body: JSON.stringify(datos),
   });
 
+// ─── Horarios de atención ───────────────────────────────────────────────────
+export const actualizarMisHorarios = (horarios) =>
+  request("/profesionales/mis-horarios/", {
+    method: "PUT",
+    body: JSON.stringify(horarios),
+  });
 
 
 // Helper para peticiones con FormData (uploads de archivos)
@@ -158,6 +164,7 @@ export const getAgendaProfesional = (profesionalId, servicioId, fecha) =>
 
 
 
+// ─── Citas ────────────────────────────────────────────────────────────────
 
 export const crearCita = (payload) =>
   request("/citas/", {
@@ -165,5 +172,13 @@ export const crearCita = (payload) =>
     body: JSON.stringify(payload),
   });
 
+export const getCitas = () =>
+  request("/citas/");
 
 
+
+
+export const confirmarCita = (citaId) =>
+  request(`/citas/${citaId}/confirmar/`, {
+    method: "POST",
+  });

@@ -19,6 +19,7 @@ import ClientesSection       from "@/pages/dashboard/ClientesSection";
 // ─── Modal y hook perfil profesional ─────────────────────────────────────────
 import ModalRegistroProfesional from "@/components/ModalRegistroProfesional";
 import { usePerfilProfesional } from "@/hooks/usePerfilProfesional";
+import Portal from "@/components/ui/Portal";
 
 // ─── Hook modo oscuro ─────────────────────────────────────────────────────────
 const useDarkMode = () => {
@@ -29,6 +30,9 @@ const useDarkMode = () => {
   }, [dark]);
   return [dark, () => setDark((d) => !d)];
 };
+
+// ─── Persistencia de la sección activa ───────────────────────────────────────
+const SECCION_STORAGE_KEY = "dashboard_seccion_activa";
 
 // ─── Menús por rol ────────────────────────────────────────────────────────────
 const menuCliente = [
@@ -56,6 +60,16 @@ const DockItem = ({ icono: Icono, label, activo, onClick, mouseX, itemRef }) => 
     if (dist < 120) setSize(48 * (1 + (1 - dist / 120) * 0.85));
     else setSize(48);
   }, [mouseX, itemRef]);
+
+  const headerRef = useRef(null);
+  useEffect(() => {
+    if (headerRef.current) {
+      document.documentElement.style.setProperty(
+        "--header-height",
+        `${headerRef.current.offsetHeight}px`
+      );
+    }
+  }, []);
 
   return (
     <div className="relative flex flex-col items-center justify-end" style={{ height: 80 }}>
@@ -130,7 +144,29 @@ const DashboardPage = () => {
 
   const esProfesional = usuario?.rol === "profesional";
   const menu = esProfesional ? menuProfesional : menuCliente;
-  const [seccionActiva, setSeccionActiva] = useState(menu[0].key);
+
+  // ── NUEVO: sección activa persistida en localStorage ─────────────────────
+  const [seccionActiva, setSeccionActivaState] = useState(() => {
+    const guardada = localStorage.getItem(SECCION_STORAGE_KEY);
+    const esValida = guardada && menu.some((item) => item.key === guardada);
+    return esValida ? guardada : menu[0].key;
+  });
+
+  // Si el rol cambia (ej. el usuario se vuelve profesional) y la sección
+  // guardada ya no pertenece al menú actual, volvemos a la primera opción.
+  useEffect(() => {
+    const esValida = menu.some((item) => item.key === seccionActiva);
+    if (!esValida) {
+      setSeccionActivaState(menu[0].key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esProfesional]);
+
+  const setSeccionActiva = (key) => {
+    setSeccionActivaState(key);
+    localStorage.setItem(SECCION_STORAGE_KEY, key);
+  };
+  // ──────────────────────────────────────────────────────────────────────────
 
   const { necesitaPerfil, marcarCompleto } = usePerfilProfesional(usuario?.rol);
 
@@ -149,21 +185,23 @@ const DashboardPage = () => {
 
       {/* ── NUEVO: Toast global, flota sobre todo el Dashboard ── */}
       {notificacion && (
-        <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2">
-          <div
-            className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium shadow-lg animate__animated animate__fadeInDown
-              ${notificacion.tipo === "exito"
-                ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
-                : "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"}`}
-          >
-            {notificacion.tipo === "exito" ? (
-              <CheckCircle2 size={18} className="shrink-0" />
-            ) : (
-              <XCircle size={18} className="shrink-0" />
-            )}
-            {notificacion.mensaje}
+        <Portal>
+          <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+            <div
+              className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium shadow-lg animate__animated animate__fadeInDown
+                ${notificacion.tipo === "exito"
+                  ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
+                  : "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"}`}
+            >
+              {notificacion.tipo === "exito" ? (
+                <CheckCircle2 size={18} className="shrink-0" />
+              ) : (
+                <XCircle size={18} className="shrink-0" />
+              )}
+              {notificacion.mensaje}
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
 
       {/* Navbar */}

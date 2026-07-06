@@ -153,7 +153,7 @@ const MapaSection = () => {
 
 
   return (
-    <div style={{ position: "fixed", inset: 0, top: "65px", bottom: "0px", zIndex: 1 }}>
+    <div style={{ position: "fixed", inset: 0, top: "var(--header-height, 65px)", bottom: "0px", zIndex: 1 }}>
       <Toast toast={toast} onClose={cerrarToast} />
       {estado.cargando && (
         <div style={{ position: "absolute", inset: 0, zIndex: 10 }}

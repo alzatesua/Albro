@@ -66,13 +66,7 @@ class CitaCreateSerializer(serializers.ModelSerializer):
         _validar_horas(data, self.instance)
         return data
 
-
 class CitaSerializer(serializers.ModelSerializer):
-    """
-    Serializador usado para listar, obtener detalle, actualizar y eliminar citas.
-    Incluye todos los campos del modelo, pero mantiene `id`, `estado`, `usuario`,
-    `fecha_creacion` y `fecha_actualizacion` como solo lectura.
-    """
     usuario = serializers.PrimaryKeyRelatedField(
         source='cliente',
         read_only=True
@@ -88,17 +82,27 @@ class CitaSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
+    # --- Campos legibles de solo lectura ---
+    usuario_nombre = serializers.SerializerMethodField()
+    profesional_nombre = serializers.SerializerMethodField()
+    servicio_nombre = serializers.SerializerMethodField()
+    categoria_nombre = serializers.SerializerMethodField()
+
     class Meta:
         model = Cita
         fields = [
             'id',
             'categoria',
+            'categoria_nombre',
             'fecha',
             'etiqueta',
             'modo',
             'profesional',
+            'profesional_nombre',
             'servicio',
+            'servicio_nombre',
             'usuario',
+            'usuario_nombre',
             'cliente',
             'hora_inicio',
             'hora_fin',
@@ -120,6 +124,23 @@ class CitaSerializer(serializers.ModelSerializer):
                 message="Ya existe una cita activa para este horario."
             )
         ]
+
+    def get_usuario_nombre(self, obj):
+        if obj.cliente:
+            return f"{obj.cliente.nombre} {obj.cliente.apellido}".strip()
+        return None
+
+    def get_profesional_nombre(self, obj):
+        # obj.profesional es un PerfilProfesional, no un Usuario
+        if obj.profesional:
+            return obj.profesional.nombre_local
+        return None
+
+    def get_servicio_nombre(self, obj):
+        return obj.servicio.nombre if obj.servicio else None
+
+    def get_categoria_nombre(self, obj):
+        return obj.categoria.nombre if obj.categoria else None
 
     def validate(self, data):
         _validar_horas(data, self.instance)

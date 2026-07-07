@@ -1,3 +1,4 @@
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -15,6 +16,7 @@ from rest_framework.throttling import UserRateThrottle
 
 from django.db import IntegrityError
 from rest_framework.exceptions import ValidationError
+from .pagination import CitasPagination 
 
 
 class CitaViewSet(viewsets.ModelViewSet):
@@ -30,6 +32,9 @@ class CitaViewSet(viewsets.ModelViewSet):
     """
     queryset = Cita.objects.all()
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    pagination_class = CitasPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['estado']
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -129,6 +134,79 @@ class CitaViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(cita)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post'], url_path='confirmar')
+    def confirmar(self, request, pk=None):
+        """
+        Endpoint para confirmar una cita.
+        Cambia el campo `estado` a "confirmada".
+        Sólo el profesional asignado (o un usuario staff/superuser)
+        puede confirmarla. Los clientes solo pueden verla.
+        """
+        cita = self.get_object()
+
+        es_profesional = (
+            hasattr(request.user, 'perfil_profesional')
+            and cita.profesional_id == request.user.perfil_profesional.id
+        )
+
+        if not (request.user.is_staff or request.user.is_superuser or es_profesional):
+            return Response(
+                {"detail": "Solo el profesional asignado puede confirmar esta cita."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if cita.estado == 'cancelada':
+            return Response(
+                {"detail": "No se puede confirmar una cita cancelada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if cita.estado == 'confirmada':
+            return Response(
+                {"detail": "La cita ya está confirmada."},
+                status=status.HTTP_200_OK,
+            )
+
+        cita.estado = 'confirmada'
+        cita.save()
+        notificar_cita(cita, tipo="confirmada")
+
+        serializer = self.get_serializer(cita)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='completar')
+    def completar(self, request, pk=None):
+        """
+        Endpoint para marcar una cita como completada.
+        Cambia el campo `estado` a "completada".
+        Sólo el profesional asignado (o un usuario staff/superuser)
+        puede marcarla, y solo si está confirmada.
+        """
+        cita = self.get_object()
+
+        es_profesional = (
+            hasattr(request.user, 'perfil_profesional')
+            and cita.profesional_id == request.user.perfil_profesional.id
+        )
+
+        if not (request.user.is_staff or request.user.is_superuser or es_profesional):
+            return Response(
+                {"detail": "Solo el profesional asignado puede completar esta cita."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if cita.estado != 'confirmada':
+            return Response(
+                {"detail": "Solo se puede completar una cita confirmada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cita.estado = 'completada'
+        cita.save()
+        notificar_cita(cita, tipo="completada")
+
+        serializer = self.get_serializer(cita)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class WSTicketThrottle(UserRateThrottle):
     scope = 'ws_ticket'

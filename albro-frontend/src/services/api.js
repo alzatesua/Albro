@@ -172,13 +172,36 @@ export const crearCita = (payload) =>
     body: JSON.stringify(payload),
   });
 
-export const getCitas = () =>
-  request("/citas/");
 
+export const getCitas = ({ estado, page, page_size } = {}) => {
+  const params = new URLSearchParams();
+  if (estado) params.set("estado", estado);
+  if (page) params.set("page", page);
+  if (page_size) params.set("page_size", page_size);
 
+  const query = params.toString();
+  return request(`/citas/${query ? `?${query}` : ""}`);
+};
 
 
 export const confirmarCita = (citaId) =>
   request(`/citas/${citaId}/confirmar/`, {
+    method: "POST",
+  });
+
+  
+export const completarCita = (citaId) =>
+  request(`/citas/${citaId}/completar/`, {
+    method: "POST",
+  });
+
+
+// ─── Websockets ──────────────────────────────────────────────────────────
+
+export const getWsTicket = () =>
+  request("/ws-ticket/");
+
+export const cancelarCita = (citaId) =>
+  request(`/citas/${citaId}/cancel/`, {
     method: "POST",
   });

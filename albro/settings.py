@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     'citas',
     'subastas',
     'cola',
+    # django-filters
+    'django_filters',
     # Apps de google auth
     'google_auth',
 ]
@@ -112,6 +114,10 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
 }
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
+CORS_EXPOSE_HEADERS = ["Content-Disposition", "Date"]
 CORS_ALLOW_ALL_ORIGINS = True
 
 CHANNEL_LAYERS = {

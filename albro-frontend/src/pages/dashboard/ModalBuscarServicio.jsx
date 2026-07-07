@@ -30,8 +30,13 @@ const getPasos = (modo) => {
 };
 
 // Fecha mínima seleccionable: hoy, en formato YYYY-MM-DD
-const hoyISO = () => new Date().toISOString().split("T")[0];
-
+const hoyISO = () => {
+  const hoy = new Date();
+  const year = hoy.getFullYear();
+  const month = String(hoy.getMonth() + 1).padStart(2, "0");
+  const day = String(hoy.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 // ─── Stepper horizontal ─────────────────────────────────────────────────────
 const Stepper = ({ pasoActual, pasos }) => (
   <div className="flex items-center mb-6">

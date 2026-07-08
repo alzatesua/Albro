@@ -7,12 +7,14 @@ source venv/bin/activate
 python manage.py runserver 8006
 
 python manage.py runserver 0.0.0.0:8006
+sudo systemctl status redis-server
+
 daphne -b 0.0.0.0 -p 8006 albro.asgi:application
 probar
 wscat -c "ws://localhost:8006/ws/citas/?ticket=EL_TICKET"
 
 aiderpy
-
+pip freeze > requirements.txt
 
 
 

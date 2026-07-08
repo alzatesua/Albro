@@ -269,3 +269,24 @@ class HorariosAtencionSerializer(serializers.Serializer):
         if isinstance(data, list):
             data = {'horarios': data}
         return super().to_internal_value(data)
+
+
+class ProfesionalUbicacionSerializer(serializers.ModelSerializer):
+    """
+    Serializer simplificado para listar ubicaciones y fotos de perfil
+    de todos los profesionales activos.
+    """
+    nombre = serializers.CharField(source='usuario.nombre', read_only=True)
+    apellido = serializers.CharField(source='usuario.apellido', read_only=True)
+
+    class Meta:
+        model = PerfilProfesional
+        fields = [
+            'id',
+            'nombre',
+            'apellido',
+            'direccion',
+            'latitud',
+            'longitud',
+            'imagen_perfil',
+        ]

@@ -8,9 +8,10 @@ from .serializers import (
     CambiarEstadoProfesionalSerializer,
     EstadoAtencionSerializer,
     PerfilProfesionalSerializer,
-    DepartamentoSerializer, 
+    DepartamentoSerializer,
     MunicipioSerializer,
     HorariosAtencionSerializer,
+    ProfesionalUbicacionSerializer,
 )
 from datetime import datetime, date, timedelta
 from rest_framework.generics import get_object_or_404
@@ -347,3 +348,32 @@ class AgendaProfesionalView(APIView):
                 'cupos_disponibles': cupos_formateados,
             }
         )
+
+
+class ListarProfesionalesUbicacionView(APIView):
+    """
+    GET /api/profesionales/ubicaciones/
+
+    Lista todos los profesionales activos con su información de ubicación:
+    - ID
+    - Nombre y apellido
+    - Dirección
+    - Latitud y longitud
+    - Foto de perfil
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        profesionales = PerfilProfesional.objects.filter(
+            activo=True
+        ).select_related('usuario')
+
+        serializer = ProfesionalUbicacionSerializer(
+            profesionales,
+            many=True
+        )
+
+        return Response({
+            'profesionales': serializer.data,
+            'total': len(serializer.data)
+        })

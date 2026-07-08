@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django_filters',
     # Apps de google auth
     'google_auth',
+    'notificaciones', 
 ]
 
 CACHES = {

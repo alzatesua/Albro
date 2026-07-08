@@ -1,21 +1,22 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
+from notificaciones.services import crear_notificacion
+
+
+TITULOS = {
+    "creada": "Nueva cita agendada",
+    "actualizada": "Cita actualizada",
+    "cancelada": "Cita cancelada",
+    "confirmada": "Cita confirmada",
+    "completada": "Cita completada",
+}
+
 
 def notificar_cita(cita, tipo):
-    """
-    Envía la actualización de una cita a los grupos del cliente
-    y del profesional asignado (si existe).
-
-    tipo: "creada" | "actualizada" | "cancelada"
-    """
-    channel_layer = get_channel_layer()
-    if channel_layer is None:
-        # CHANNEL_LAYERS no configurado; no rompemos el flujo HTTP normal.
-        return
-
     from .serializers import CitaSerializer
     data = CitaSerializer(cita).data
+    titulo = TITULOS.get(tipo, "Actualización de cita")
 
     destinatarios_ids = set()
     if cita.cliente_id:
@@ -24,11 +25,13 @@ def notificar_cita(cita, tipo):
         destinatarios_ids.add(cita.profesional.usuario_id)
 
     for user_id in destinatarios_ids:
-        async_to_sync(channel_layer.group_send)(
-            f"user_{user_id}",
-            {
-                "type": "cita_actualizada",  # debe matchear el método del consumer
-                "tipo": tipo,
-                "cita": data,
-            },
-        )
+        crear_notificacion(
+            usuario_id=user_id,
+            tipo="cita",
+            evento=tipo,
+            titulo=titulo,
+            mensaje=f"Cita del {cita.fecha} a las {cita.hora_inicio}",
+            data=data,
+            content_type_app="citas.Cita",
+            object_id=cita.id,
+        )      

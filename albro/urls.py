@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/auth/', include('google_auth.urls')),
     # Si en el futuro añades más apps, simplemente agrega otra línea aquí,
     # por ejemplo: path('api/subastas/', include('subastas.urls')),
+    path('api/', include('notificaciones.urls')),
 ]
 
 # Servir archivos de media en modo desarrollo

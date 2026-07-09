@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import Toast from "./Toast";
+import Toast from "../../components/Toast";
 import { actualizarImagenPerfil, getPerfilProfesional, actualizarDatosPersonales, actualizarMisHorarios, getMisServicios, eliminarServicio } from "@/services/api";
 import {
   Camera, Phone, Scissors, FileText, MapPin, Store,

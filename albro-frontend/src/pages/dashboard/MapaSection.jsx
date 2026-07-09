@@ -1,7 +1,7 @@
 // MapaSection.jsx — migrado a Leaflet + OpenStreetMap
 import { useEffect, useRef, useState } from "react";
 import { Search, CalendarClock } from "lucide-react";
-import Toast from "./Toast";
+import Toast from "../../components/Toast";
 import ModalBuscarServicio from "./ModalBuscarServicio";
 
 const ZOOM_DEFAULT = 15;

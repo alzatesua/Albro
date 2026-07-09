@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from django.db.models import Q
 
 from .models import Cita
-from .serializers import CitaSerializer, CitaCreateSerializer
+from .serializers import CitaSerializer, CitaCreateSerializer, ReagendarCitaSerializer
 
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -207,6 +207,81 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(cita)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='reagendar')
+    def reagendar(self, request, pk=None):
+        """
+        Endpoint para reagendar una cita (cambiar fecha/hora_inicio/hora_fin).
+        Vuelve el estado a 'pendiente' para forzar reconfirmación del profesional.
+        Puede hacerlo el cliente propietario, el profesional asignado,
+        o un usuario staff/superuser.
+        """
+        cita = self.get_object()
+
+        es_cliente = cita.cliente_id == request.user.id
+        es_profesional = (
+            hasattr(request.user, 'perfil_profesional')
+            and cita.profesional_id == request.user.perfil_profesional.id
+        )
+
+        if not (request.user.is_staff or request.user.is_superuser or es_cliente or es_profesional):
+            return Response(
+                {"detail": "No tienes permiso para reagendar esta cita."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if cita.estado in ('cancelada', 'completada'):
+            return Response(
+                {"detail": f"No se puede reagendar una cita en estado '{cita.estado}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        input_serializer = ReagendarCitaSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        nueva_fecha = input_serializer.validated_data['fecha']
+        nueva_hora_inicio = input_serializer.validated_data['hora_inicio']
+        nueva_hora_fin = input_serializer.validated_data['hora_fin']
+
+        # Verifica manualmente que el profesional no tenga otra cita activa
+        # en ese mismo horario (excluyendo la cita actual).
+        conflicto = Cita.objects.exclude(pk=cita.pk).exclude(estado='cancelada').filter(
+            profesional=cita.profesional,
+            fecha=nueva_fecha,
+            hora_inicio=nueva_hora_inicio,
+        ).exists()
+
+        if conflicto:
+            return Response(
+                {"detail": "Ya existe una cita activa para este profesional en la nueva fecha y hora."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        estado_anterior = cita.estado
+        cita.fecha = nueva_fecha
+        cita.hora_inicio = nueva_hora_inicio
+        cita.hora_fin = nueva_hora_fin
+        cita.estado = 'pendiente'
+
+        try:
+            cita.save()
+        except IntegrityError:
+            return Response(
+                {"detail": "Ya existe una cita activa para este profesional en la nueva fecha y hora."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Esta llamada es la que dispara el evento por WebSocket,
+        # igual que en cancel/confirmar/completar.
+        notificar_cita(cita, tipo="reagendada")
+
+        serializer = self.get_serializer(cita)
+        return Response(
+            {
+                "detail": f"Cita reagendada correctamente (estado anterior: {estado_anterior}).",
+                "cita": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 class WSTicketThrottle(UserRateThrottle):
     scope = 'ws_ticket'

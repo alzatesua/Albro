@@ -145,3 +145,31 @@ class CitaSerializer(serializers.ModelSerializer):
     def validate(self, data):
         _validar_horas(data, self.instance)
         return data
+
+class ReagendarCitaSerializer(serializers.Serializer):
+    """
+    Serializer para validar los nuevos datos de fecha/hora al reagendar.
+    """
+    fecha = serializers.DateField(required=True)
+    hora_inicio = serializers.TimeField(required=True)
+    hora_fin = serializers.TimeField(required=True)
+
+    def validate(self, data):
+        if data['hora_fin'] <= data['hora_inicio']:
+            raise serializers.ValidationError(
+                "La hora de fin debe ser posterior a la hora de inicio."
+            )
+
+        from django.utils import timezone
+        import datetime
+
+        nueva_dt_inicio = datetime.datetime.combine(data['fecha'], data['hora_inicio'])
+        if timezone.is_aware(timezone.now()):
+            nueva_dt_inicio = timezone.make_aware(nueva_dt_inicio)
+
+        if nueva_dt_inicio <= timezone.now():
+            raise serializers.ValidationError(
+                "La nueva fecha y hora deben ser posteriores al momento actual."
+            )
+
+        return data

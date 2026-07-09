@@ -28,7 +28,10 @@ const request = async (endpoint, options = {}) => {
         data?.detalle ||   // Django a veces responde con "detalle" en español
         data?.message ||
         Object.entries(data)
-          .map(([campo, errs]) => `${campo}: ${Array.isArray(errs) ? errs.join(", ") : errs}`)
+          .map(([campo, errs]) => {
+            const texto = Array.isArray(errs) ? errs.join(", ") : errs;
+            return campo === "non_field_errors" ? texto : `${campo}: ${texto}`;
+          })
           .join(" · ");
 
       const err = new Error(mensaje);
@@ -119,7 +122,10 @@ const requestFormData = async (endpoint, formData, options = {}) => {
         data?.detalle ||
         data?.message ||
         Object.entries(data)
-          .map(([campo, errs]) => `${campo}: ${Array.isArray(errs) ? errs.join(", ") : errs}`)
+          .map(([campo, errs]) => {
+            const texto = Array.isArray(errs) ? errs.join(", ") : errs;
+            return campo === "non_field_errors" ? texto : `${campo}: ${texto}`;
+          })
           .join(" · ");
 
       const err = new Error(mensaje);
@@ -195,6 +201,13 @@ export const completarCita = (citaId) =>
     method: "POST",
   });
 
+export const reagendarCita = async (citaId, { fecha, hora_inicio, hora_fin }) => {
+  const data = await request(`/citas/${citaId}/reagendar/`, {
+    method: "POST",
+    body: JSON.stringify({ fecha, hora: hora_inicio, hora_inicio, hora_fin }),
+  });
+  return data.cita ?? data;
+};
 
 // ─── Websockets ──────────────────────────────────────────────────────────
 

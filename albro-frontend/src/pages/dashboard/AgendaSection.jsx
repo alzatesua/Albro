@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef   } from "react";
 import { Calendar, Clock, User, ChevronLeft, ChevronRight, CheckCheck, Play,XCircle, CalendarClock} from "lucide-react";
-import { getCitas, confirmarCita, cancelarCita, completarCita} from "../../services/api"; // ajusta la ruta según tu estructura
+import { getCitas, confirmarCita, cancelarCita, completarCita, reagendarCita} from "../../services/api"; // ajusta la ruta según tu estructura
 import { useCitasSocket } from "../../hooks/useCitasSocket";
 import CitaAlertaModal from "../../components/CitaAlertaModal"; // ajusta la ruta
 import { useHoraServidor } from "../../hooks/useHoraServidor";
-
+import ReagendarModal from "../../components/ReagendarModal";
+import Toast from "../../components/Toast"; // ajusta la ruta según tu estructura
 
 
 // Duración de la caída de cada tarjeta al cambiar de dígito
@@ -30,7 +31,7 @@ const DigitCard = ({ digit }) => {
 
   return (
     <div
-      className="relative h-16 w-10 sm:h-15 sm:w-14 [perspective:400px]"
+      className="relative h-11 w-8 sm:h-12 sm:w-9 [perspective:400px]"
       style={{ perspective: "400px" }}
     >
       <div className="absolute inset-0 flex h-full w-full items-center justify-center rounded-md border border-black/5 dark:border-white/10 bg-zinc-100 dark:bg-zinc-800 font-mono font-bold tabular-nums leading-none text-3xl sm:text-4xl text-zinc-700 dark:text-zinc-200">
@@ -48,11 +49,26 @@ const DigitCard = ({ digit }) => {
     </div>
   );
 };
+
+const RelojShell = ({ top, digits, bottom }) => (
+    <div className="flex flex-col items-center gap-2 py-2">
+      <div className="h-[18px] w-full flex justify-end items-center">
+        {top}
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        {digits}
+      </div>
+
+      <div className="h-[18px] flex items-center">
+        {bottom}
+      </div>
+    </div>
+  );
 // Cronómetro regresivo: cuenta desde la duración de una cita (mm:ss)
-const Cronometro = ({ segundosIniciales, onTerminar, onCancelar }) => {
+const Cronometro = ({ segundosIniciales, servicio, onTerminar, onCancelar }) => {
   const [segundosRestantes, setSegundosRestantes] = useState(segundosIniciales);
   const onTerminarRef = useRef(onTerminar);
-
 
   useEffect(() => {
     onTerminarRef.current = onTerminar;
@@ -73,7 +89,6 @@ const Cronometro = ({ segundosIniciales, onTerminar, onCancelar }) => {
     return () => clearTimeout(timeout);
   }, [segundosRestantes]);
 
-  // Soporta hasta 99 minutos; si la cita dura más, se muestra en horas:minutos
   const usaHoras = segundosRestantes >= 60 * 100;
   const unidadUno = usaHoras
     ? Math.floor(segundosRestantes / 3600)
@@ -92,24 +107,34 @@ const Cronometro = ({ segundosIniciales, onTerminar, onCancelar }) => {
     </div>
   );
 
- return (
-    <div className="relative flex flex-col items-center justify-center h-full py-2">
-      <button
-        onClick={onCancelar}
-        className="absolute top-[-10px] right-2 flex items-center gap-1 rounded-md bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 px-2 py-1 text-[11px] font-medium hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-      >
-        Cancelar
-      </button>
-
-      <div className="flex items-center gap-2">
-        <Group value={g1} />
-        <span className="text-2xl font-bold text-zinc-400 dark:text-zinc-500">:</span>
-        <Group value={g2} />
-      </div>
-    </div>
+  return (
+    <RelojShell
+      top={
+        <button
+          onClick={onCancelar}
+          className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+        >
+          Cancelar
+        </button>
+      }
+      digits={
+        <>
+          <Group value={g1} />
+          <span className="text-lg font-bold text-zinc-300 dark:text-zinc-600">:</span>
+          <Group value={g2} />
+        </>
+      }
+      bottom={
+        servicio && (
+          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            {servicio}
+          </p>
+        )
+      }
+    />
   );
 };
-// Reloj de tarjetas (flip clock) en vivo
+
 const FlipClock = () => {
   const now = useHoraServidor();
 
@@ -120,12 +145,6 @@ const FlipClock = () => {
   const hours = String(hora12).padStart(2, "0");
   const minutes = String(now.getMinutes()).padStart(2, "0");
 
-  const formattedDate = now.toLocaleDateString("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   const Group = ({ value }) => (
     <div className="flex gap-1">
       <DigitCard digit={value[0]} />
@@ -134,23 +153,23 @@ const FlipClock = () => {
   );
 
   return (
-    <div className="flex flex-col items-center justify-center h-full py-2">
-     <div className="flex items-center gap-2">
-      <Group value={hours} />
-      <span className="text-2xl font-bold text-zinc-400 dark:text-zinc-500">:</span>
-      <Group value={minutes} />
-      <span className="ml-1 text-lg font-semibold text-zinc-400 dark:text-zinc-500 self-end translate-y-[8px] sm:translate-y-[6px]">
-        {periodo}
-      </span>
-    </div>
-
-      {/*<p className="mt-4 text-sm text-zinc-400 dark:text-zinc-500 capitalize">
-        {formattedDate}
-      </p>*/}
-    </div>
+    <RelojShell
+      top={null}
+      digits={
+        <>
+          <Group value={hours} />
+          <span className="text-lg font-bold text-zinc-300 dark:text-zinc-600">:</span>
+          <Group value={minutes} />
+        </>
+      }
+      bottom={
+        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          {periodo}
+        </span>
+      }
+    />
   );
 };
-
 // ─── Helpers de formato ─────────────────────────────────────────────────────
 
 // "09:00:00" -> "09:00 AM"
@@ -192,6 +211,43 @@ const calcularDuracionSegundos = (cita) => {
   const fin = new Date(`2000-01-01T${cita.hora_fin}`);
   return Math.max(0, Math.round((fin - inicio) / 1000));
 };
+const ConfirmarCancelacionModal = ({ cita, onConfirmar, onCerrar, procesando }) => {
+  if (!cita) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-sm rounded-xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 p-5 shadow-lg">
+        <h3 className="text-base font-semibold text-zinc-800 dark:text-zinc-100">
+          ¿Cancelar esta cita?
+        </h3>
+        <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+          Vas a cancelar la cita de{" "}
+          <span className="font-medium text-zinc-700 dark:text-zinc-200">
+            {cita.usuario_nombre}
+          </span>
+          . Esta acción no se puede deshacer.
+        </p>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCerrar}
+            disabled={procesando}
+            className="rounded-md px-3 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Volver
+          </button>
+          <button
+            onClick={() => onConfirmar(cita.id)}
+            disabled={procesando}
+            className="rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {procesando ? "Cancelando..." : "Sí, cancelar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AgendaSection = () => {
   const ahora = useHoraServidor();
@@ -210,21 +266,24 @@ const AgendaSection = () => {
   const [citaEnCurso, setCitaEnCurso] = useState(null);
   const [completandoEnCurso, setCompletandoEnCurso] = useState(false);
   const [cancelando, setCancelando] = useState(null);
-  const [citaAReagendar, setCitaAReagendar] = useState(null); 
+  const [citaAReagendar, setCitaAReagendar] = useState(null);
+  const [procesandoReagendar, setProcesandoReagendar] = useState(false); 
+  const [toast, setToast] = useState(null); 
+  const [citaAConfirmarCancelacion, setCitaAConfirmarCancelacion] = useState(null);
+
+  
 
   const handleConfirmar = async (citaId) => {
     try {
       setConfirmando(citaId);
       const citaActualizada = await confirmarCita(citaId);
-
-      // Si ya no está pendiente, la quitamos de la lista (optimistic update)
       setCitas((prev) =>
-        prev
-          .map((c) => (c.id === citaId ? citaActualizada : c))
-          .filter((c) => c.estado === "pendiente")
+        prev.map((c) => (c.id === citaId ? citaActualizada : c)).filter((c) => c.estado === "pendiente")
       );
+      setToast({ tipo: "success", mensaje: "Cita confirmada correctamente." });
     } catch (err) {
       setError(err.message || "No se pudo confirmar la cita.");
+      setToast({ tipo: "error", mensaje: err.message || "No se pudo confirmar la cita." });
     } finally {
       setConfirmando(null);
     }
@@ -251,6 +310,34 @@ const AgendaSection = () => {
       setError(err.message || "No se pudo cancelar la cita.");
     } finally {
       setCancelando(null);
+    }
+  };
+  const handleReagendarSubmit = async (citaId, { fecha, hora_inicio, hora_fin }) => {
+    try {
+      setProcesandoReagendar(true);
+      const citaActualizada = await reagendarCita(citaId, { fecha, hora_inicio, hora_fin });
+
+      setCitas((prev) => {
+        const siguePerteneciendo = citaActualizada.estado === tab;
+        if (siguePerteneciendo) {
+          // Sigue confirmada: solo actualizamos sus datos (nueva fecha/hora)
+          return prev.map((c) => (c.id === citaId ? citaActualizada : c));
+        }
+        // Ya no pertenece a este tab (pasó a pendiente): la quitamos
+        setTotalCitas((c) => Math.max(0, c - 1));
+        return prev.filter((c) => c.id !== citaId);
+      });
+
+      setCitaAReagendar(null);
+      setToast({ tipo: "success", mensaje: "Cita reagendada correctamente." });
+    } catch (err) {
+      setToast({
+        tipo: "error",
+        mensaje: err.message || "No se pudo reagendar la cita.",
+      });
+      throw err;
+    } finally {
+      setProcesandoReagendar(false);
     }
   };
   const obtenerSiguienteTurno = () => {
@@ -356,6 +443,7 @@ const AgendaSection = () => {
 
 
 
+
   const handleConfirmarDesdeModal = async (citaId) => {
     try {
       setProcesandoAlerta(true);
@@ -388,6 +476,8 @@ const AgendaSection = () => {
     completada: "completadas",
     cancelada: "canceladas",
   }[tab];
+
+  
 
   return (
     <div className="w-full">
@@ -435,14 +525,7 @@ const AgendaSection = () => {
   
         {/* Columna izquierda: lista de citas pendientes */}
         <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
-          
-           {citas.length > 0 && (
-              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
-                Total {totalCitas}
-              </span>
-            )}
-          </div>
+         
 
           {cargando ? (
             <p className="text-sm text-zinc-400 dark:text-zinc-500 text-center py-8">
@@ -525,7 +608,7 @@ const AgendaSection = () => {
                             </button>
 
                             <button
-                              onClick={() => handleCancelar(cita.id)}
+                              onClick={() => setCitaAConfirmarCancelacion(cita)}
                               disabled={cancelando === cita.id}
                               className="flex items-center gap-1 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 px-2.5 py-1.5 text-xs font-medium hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
@@ -545,8 +628,8 @@ const AgendaSection = () => {
                                 "..."
                               ) : (
                                 <>
-                                  <CheckCheck className="w-3.5 h-3.5" />
-                                  Aceptar
+                                  {/* <Check className="w-3.5 h-3.5" /> */}
+                                  Escoger
                                 </>
                               )}
                             </button>
@@ -560,7 +643,7 @@ const AgendaSection = () => {
                             </button>
 
                             <button
-                              onClick={() => handleCancelar(cita.id)}
+                              onClick={() => setCitaAConfirmarCancelacion(cita)}
                               disabled={cancelando === cita.id}
                               className="flex items-center gap-1 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 px-2.5 py-1.5 text-xs font-medium hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
@@ -606,7 +689,7 @@ const AgendaSection = () => {
 
         {/* Columna derecha: reloj de tarjetas (flip clock) en vivo */} 
         <div
-          className={`p-4 transition-colors ${
+          className={`p-4 transition-colors sticky top-4 self-start flex flex-col gap-2 ${
             arrastrandoSobreReloj ? "bg-emerald-500/5" : ""
           }`}
           onDragOver={(e) => {
@@ -627,22 +710,21 @@ const AgendaSection = () => {
             }
           }}
         >
-        {duracionCronometro !== null ? (
-          <>
-            <Cronometro
-              segundosIniciales={duracionCronometro}
-              onTerminar={() => {
-                setDuracionCronometro(null);
-                setCitaEnCurso(null);
-              }}
-              onCancelar={() => {
-                setDuracionCronometro(null);
-                setCitaEnCurso(null);
-              }}
-            />
-            {citaEnCurso && (
-              <div className="px-4 pb-2 -mt-2">
-                
+          {duracionCronometro !== null ? (
+            <>
+              <Cronometro
+                segundosIniciales={duracionCronometro}
+                servicio={citaEnCurso?.servicio_nombre}
+                onTerminar={() => {
+                  setDuracionCronometro(null);
+                  setCitaEnCurso(null);
+                }}
+                onCancelar={() => {
+                  setDuracionCronometro(null);
+                  setCitaEnCurso(null);
+                }}
+              />
+              {citaEnCurso && (
                 <button
                   onClick={handleCompletarEnCurso}
                   disabled={completandoEnCurso}
@@ -651,13 +733,11 @@ const AgendaSection = () => {
                   <CheckCheck className="w-4 h-4" />
                   {completandoEnCurso ? "Completando..." : "Completar"}
                 </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <FlipClock />
-            <div className="px-4 pb-4">
+              )}
+            </>
+          ) : (
+            <>
+              <FlipClock />
               <button
                 onClick={handleIniciarSiguienteTurno}
                 disabled={!obtenerSiguienteTurno()}
@@ -666,9 +746,8 @@ const AgendaSection = () => {
                 <Play className="w-4 h-4 fill-current relative transition-transform group-hover:translate-x-0.5" />
                 Iniciar siguiente turno
               </button>
-            </div>
-          </>
-        )}
+            </>
+          )}
         </div>
       </div>
 
@@ -679,6 +758,22 @@ const AgendaSection = () => {
         onCerrar={() => setCitaAlerta(null)}
         procesando={procesandoAlerta}
       />
+      <ReagendarModal
+        cita={citaAReagendar}
+        onReagendar={handleReagendarSubmit}
+        onCerrar={() => setCitaAReagendar(null)}
+        procesando={procesandoReagendar}
+      />
+      <Toast toast={toast} onClose={() => setToast(null)} />
+        <ConfirmarCancelacionModal
+          cita={citaAConfirmarCancelacion}
+          procesando={cancelando === citaAConfirmarCancelacion?.id}
+          onCerrar={() => setCitaAConfirmarCancelacion(null)}
+          onConfirmar={async (citaId) => {
+            await handleCancelar(citaId);
+            setCitaAConfirmarCancelacion(null);
+          }}
+        />
     </div>
   );
 };

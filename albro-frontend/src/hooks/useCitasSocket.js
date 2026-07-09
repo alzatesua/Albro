@@ -23,7 +23,10 @@ export const useCitasSocket = (onMensaje) => {
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          onMensajeRef.current?.(data.tipo, data.cita);
+
+          if (data.tipo && data.cita) {
+            onMensajeRef.current?.(data.tipo, data.cita);
+          }
         } catch {
           console.error("Mensaje de websocket inválido:", event.data);
         }

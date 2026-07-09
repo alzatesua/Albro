@@ -409,8 +409,9 @@ const AgendaSection = () => {
   const citasPagina = citas.slice(inicio, inicio + CITAS_POR_PAGINA);
 
 
-
   const manejarMensajeSocket = (tipo, cita) => {
+    if (!cita) return; // ignora mensajes que no son de citas (ej. notificaciones genéricas)
+
     if (tipo === "creada") {
       setCitaAlerta(cita);
       if (tab === "pendiente") {
@@ -428,7 +429,7 @@ const AgendaSection = () => {
       if (perteneceATab) {
         return yaEstaba
           ? prev.map((c) => (c.id === cita.id ? cita : c))
-          : prev; // si no estaba y cambió al tab actual, lo dejamos para el siguiente refresh
+          : prev;
       }
       if (yaEstaba) {
         setTotalCitas((c) => Math.max(0, c - 1));

@@ -209,6 +209,28 @@ export const reagendarCita = async (citaId, { fecha, hora_inicio, hora_fin }) =>
   return data.cita ?? data;
 };
 
+// ─── Notificaciones ──────────────────────────────────────────────────────
+
+export const getNotificaciones = ({ leida, page, page_size } = {}) => {
+  const params = new URLSearchParams();
+  if (leida !== undefined) params.set("leida", leida);
+  if (page) params.set("page", page);
+  if (page_size) params.set("page_size", page_size);
+
+  const query = params.toString();
+  return request(`/notificaciones/${query ? `?${query}` : ""}`);
+};
+
+export const marcarNotificacionLeida = (notificacionId) =>
+  request(`/notificaciones/${notificacionId}/marcar-leida/`, {
+    method: "POST",
+  });
+
+export const marcarTodasNotificacionesLeidas = () =>
+  request(`/notificaciones/marcar-todas-leidas/`, {
+    method: "POST",
+  });
+
 // ─── Websockets ──────────────────────────────────────────────────────────
 
 export const getWsTicket = () =>

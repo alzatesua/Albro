@@ -38,8 +38,8 @@ class CitaConsumer(AsyncWebsocketConsumer):
             "cita": event["cita"],
         }))
 
-async def notificacion_push(self, event):
-    await self.send(text_data=json.dumps({
-        "evento": "notificacion",
-        "notificacion": event["notificacion"],
-    }))
+    async def notificacion_push(self, event):
+        await self.send(text_data=json.dumps({
+            "evento": "notificacion",
+            "notificacion": event["notificacion"],
+        }))

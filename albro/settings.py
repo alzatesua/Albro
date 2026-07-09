@@ -117,6 +117,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://localhost:5174",  
 ]
 CORS_EXPOSE_HEADERS = ["Content-Disposition", "Date"]
 CORS_ALLOW_ALL_ORIGINS = True

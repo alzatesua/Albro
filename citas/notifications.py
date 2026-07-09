@@ -12,8 +12,7 @@ TITULOS = {
     "completada": "Cita completada",
 }
 
-
-def notificar_cita(cita, tipo):
+def notificar_cita(cita, tipo, actor_id=None):
     from .serializers import CitaSerializer
     data = CitaSerializer(cita).data
     titulo = TITULOS.get(tipo, "Actualización de cita")
@@ -23,6 +22,9 @@ def notificar_cita(cita, tipo):
         destinatarios_ids.add(cita.cliente_id)
     if getattr(cita, "profesional_id", None) and getattr(cita.profesional, "usuario_id", None):
         destinatarios_ids.add(cita.profesional.usuario_id)
+
+    if actor_id is not None:
+        destinatarios_ids.discard(actor_id)
 
     for user_id in destinatarios_ids:
         crear_notificacion(
@@ -34,4 +36,4 @@ def notificar_cita(cita, tipo):
             data=data,
             content_type_app="citas.Cita",
             object_id=cita.id,
-        )      
+        )

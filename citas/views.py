@@ -64,8 +64,8 @@ class CitaViewSet(viewsets.ModelViewSet):
             raise ValidationError(
                 {"detail": "Ya existe una cita activa para este profesional en la misma fecha y hora."}
             )
-        notificar_cita(cita, tipo="creada")
-
+        notificar_cita(cita, tipo="creada", actor_id=self.request.user.id)
+        
     def perform_update(self, serializer):
         """
         Actualizamos la cita y notificamos por WebSocket.
@@ -76,8 +76,8 @@ class CitaViewSet(viewsets.ModelViewSet):
             raise ValidationError(
                 {"detail": "Ya existe una cita activa para este profesional en la misma fecha y hora."}
             )
-        notificar_cita(cita, tipo="actualizada")
-
+        notificar_cita(cita, tipo="actualizada", actor_id=self.request.user.id)
+        
     def destroy(self, request, *args, **kwargs):
         """
         Permite eliminar una cita solo si pertenece al usuario autenticado
@@ -129,7 +129,7 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         cita.estado = 'cancelada'
         cita.save()
-        notificar_cita(cita, tipo="cancelada")
+        notificar_cita(cita, tipo="cancelada", actor_id=request.user.id)
 
         serializer = self.get_serializer(cita)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -169,7 +169,7 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         cita.estado = 'confirmada'
         cita.save()
-        notificar_cita(cita, tipo="confirmada")
+        notificar_cita(cita, tipo="confirmada", actor_id=request.user.id)
 
         serializer = self.get_serializer(cita)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -203,8 +203,8 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         cita.estado = 'completada'
         cita.save()
-        notificar_cita(cita, tipo="completada")
-
+        notificar_cita(cita, tipo="reagendada", actor_id=request.user.id)
+        
         serializer = self.get_serializer(cita)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, User, Scissors, Map, Briefcase, UserCheck,
   Settings, CalendarClock, Users, Sun, Moon,
-  CheckCircle2, XCircle
+  CheckCircle2, XCircle, Bell
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Secciones ────────────────────────────────────────────────────────────────
 import MapaSection           from "@/pages/dashboard/MapaSection";
@@ -20,6 +20,8 @@ import ClientesSection       from "@/pages/dashboard/ClientesSection";
 import ModalRegistroProfesional from "@/components/ModalRegistroProfesional";
 import { usePerfilProfesional } from "@/hooks/usePerfilProfesional";
 import Portal from "@/components/ui/Portal";
+import { getNotificaciones, marcarNotificacionLeida, marcarTodasNotificacionesLeidas } from "@/services/api"; // ajusta el path real
+import { useNotificacionesWS } from "@/hooks/useNotificacionesWS";
 
 // ─── Hook modo oscuro ─────────────────────────────────────────────────────────
 const useDarkMode = () => {
@@ -180,6 +182,132 @@ const DashboardPage = () => {
     clientes:    <ClientesSection />,
   };
 
+  // ── Notificaciones (dropdown) ────────────────────────────────────────────
+  const NOTIF_PAGE_SIZE = 5;
+
+  const [notificaciones, setNotificaciones] = useState([]); // solo no leídas
+  const [notificacionesLeidas, setNotificacionesLeidas] = useState([]);
+  const [mostrarLeidas, setMostrarLeidas] = useState(false);
+  const [paginaLeidas, setPaginaLeidas] = useState(1);
+  const [hayMasLeidas, setHayMasLeidas] = useState(true);
+  const [cargandoLeidas, setCargandoLeidas] = useState(false);
+  const [mostrarNotificaciones, setMostrarNotificaciones] = useState(false);
+  const [cargandoNotificaciones, setCargandoNotificaciones] = useState(false);
+  const notifRef = useRef(null);
+
+  const hayNuevas = notificaciones.length > 0;
+
+  const cargarNotificaciones = async () => {
+    setCargandoNotificaciones(true);
+    try {
+      const data = await getNotificaciones({ leida: false });
+      setNotificaciones(data.results ?? data);
+    } catch (err) {
+      console.error("Error cargando notificaciones:", err);
+    } finally {
+      setCargandoNotificaciones(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarNotificaciones();
+  }, []);
+
+  useEffect(() => {
+    const handleClickFuera = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setMostrarNotificaciones(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickFuera);
+    return () => document.removeEventListener("mousedown", handleClickFuera);
+  }, []);
+
+  const abrirNotificaciones = () => {
+    setMostrarNotificaciones((v) => !v);
+  };
+
+  // Carga (o pide la siguiente página de) notificaciones ya leídas
+  const cargarMasLeidas = async () => {
+    setCargandoLeidas(true);
+    try {
+      const data = await getNotificaciones({
+        leida: true,
+        page: paginaLeidas,
+        page_size: NOTIF_PAGE_SIZE,
+      });
+      const nuevos = data.results ?? data;
+      setNotificacionesLeidas((prev) => [...prev, ...nuevos]);
+      setHayMasLeidas(Boolean(data.next));
+      setPaginaLeidas((p) => p + 1);
+    } catch (err) {
+      console.error("Error cargando notificaciones leídas:", err);
+    } finally {
+      setCargandoLeidas(false);
+    }
+  };
+
+  const handleVerLeidas = () => {
+    const abriendo = !mostrarLeidas;
+    setMostrarLeidas(abriendo);
+    // Primera vez que se abre: carga la página 1
+    if (abriendo && notificacionesLeidas.length === 0) {
+      cargarMasLeidas();
+    }
+  };
+
+  // Marca una notificación como leída y la saca de la lista de "no leídas"
+  const abrirDetalleNotificacion = async (n) => {
+    setNotificacionSeleccionada(n);
+    setMostrarNotificaciones(false);
+
+    if (!n.leida) {
+      try {
+        await marcarNotificacionLeida(n.id);
+        setNotificaciones((prev) => prev.filter((x) => x.id !== n.id));
+      } catch (err) {
+        console.error("Error marcando notificación como leída:", err);
+      }
+    }
+  };
+
+  const formatearFecha = (isoString) => {
+    const fecha = new Date(isoString);
+    const ahora = new Date();
+    const diffMs = ahora - fecha;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "ahora mismo";
+    if (diffMin < 60) return `hace ${diffMin} min`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `hace ${diffH} h`;
+    return fecha.toLocaleDateString("es-CO");
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+ 
+  // ── Modal de notificación seleccionada ───────────────────────────────────
+  const [notificacionSeleccionada, setNotificacionSeleccionada] = useState(null);
+  // ──────────────────────────────────────────────────────────────────────────
+  const colorEstado = (estado) => {
+    switch (estado) {
+      case "confirmada":  return "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
+      case "pendiente":   return "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+      case "cancelada":   return "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800";
+      case "completada":  return "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800";
+      default:            return "bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700";
+    }
+  };
+
+  // Callback estable para agregar la notificación nueva al inicio de la lista
+  const manejarNuevaNotificacion = useCallback((notif) => {
+    setNotificaciones((prev) => {
+      // Evita duplicados si el WS reenvía algo que ya llegó por polling/carga inicial
+      if (prev.some((n) => n.id === notif.id)) return prev;
+      return [notif, ...prev];
+    });
+  }, []);
+
+  useNotificacionesWS({ usuario, onNuevaNotificacion: manejarNuevaNotificacion });
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col transition-colors duration-300">
 
@@ -204,6 +332,107 @@ const DashboardPage = () => {
         </Portal>
       )}
 
+      {/* ── Modal de detalle de notificación ── */}
+      {notificacionSeleccionada && (
+        <Portal>
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate__animated animate__fadeIn animate__faster"
+            onClick={() => setNotificacionSeleccionada(null)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl w-full max-w-md overflow-hidden animate__animated animate__zoomIn animate__faster"
+            >
+              {/* Header */}
+              <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                <span className="font-semibold text-zinc-900 dark:text-white">
+                  {notificacionSeleccionada.titulo}
+                </span>
+                <button
+                  onClick={() => setNotificacionSeleccionada(null)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <XCircle size={16} />
+                </button>
+              </div>
+
+              {/* Contenido */}
+              <div className="px-5 py-4 space-y-3 text-sm">
+                <p className="text-zinc-600 dark:text-zinc-300">{notificacionSeleccionada.mensaje}</p>
+
+                {notificacionSeleccionada.data && (
+                  <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
+                    {notificacionSeleccionada.data.estado && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-zinc-500 dark:text-zinc-400">Estado</span>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${colorEstado(notificacionSeleccionada.data.estado)}`}>
+                          {notificacionSeleccionada.data.estado}
+                        </span>
+                      </div>
+                    )}
+                    {notificacionSeleccionada.data.servicio_nombre && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-zinc-500 dark:text-zinc-400">Servicio</span>
+                        <span className="text-zinc-800 dark:text-zinc-200">{notificacionSeleccionada.data.servicio_nombre}</span>
+                      </div>
+                    )}
+                    {notificacionSeleccionada.data.categoria_nombre && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-zinc-500 dark:text-zinc-400">Categoría</span>
+                        <span className="text-zinc-800 dark:text-zinc-200">{notificacionSeleccionada.data.categoria_nombre}</span>
+                      </div>
+                    )}
+                    {notificacionSeleccionada.data.profesional_nombre && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-zinc-500 dark:text-zinc-400">Profesional</span>
+                        <span className="text-zinc-800 dark:text-zinc-200">{notificacionSeleccionada.data.profesional_nombre}</span>
+                      </div>
+                    )}
+                    {notificacionSeleccionada.data.usuario_nombre && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-zinc-500 dark:text-zinc-400">Cliente</span>
+                        <span className="text-zinc-800 dark:text-zinc-200">{notificacionSeleccionada.data.usuario_nombre}</span>
+                      </div>
+                    )}
+                    {notificacionSeleccionada.data.fecha && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-zinc-500 dark:text-zinc-400">Fecha</span>
+                        <span className="text-zinc-800 dark:text-zinc-200">
+                          {new Date(notificacionSeleccionada.data.fecha).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}
+                        </span>
+                      </div>
+                    )}
+                    {notificacionSeleccionada.data.etiqueta && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-zinc-500 dark:text-zinc-400">Horario</span>
+                        <span className="text-zinc-800 dark:text-zinc-200">{notificacionSeleccionada.data.etiqueta}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 pt-1">
+                  Recibida {formatearFecha(notificacionSeleccionada.fecha_creacion)}
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setNotificacionSeleccionada(null)}
+                  className="text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 dark:bg-transparent"
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+      {/* ─────────────────────────────────────── */}
+
       {/* Navbar */}
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
         <div className="flex items-center gap-2">
@@ -220,6 +449,98 @@ const DashboardPage = () => {
           >
             {dark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
+
+          {/* ── Campana de notificaciones ── */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={abrirNotificaciones}
+              className="relative w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+            >
+              <Bell size={16} />
+              {hayNuevas && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-900" />
+              )}
+            </button>
+
+            {mostrarNotificaciones && (
+              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
+                <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
+                  <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Notificaciones</span>
+                </div>
+
+                <div className="max-h-96 overflow-y-auto">
+                  {/* ── No leídas ── */}
+                  {cargandoNotificaciones ? (
+                    <div className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
+                      Cargando...
+                    </div>
+                  ) : notificaciones.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
+                      No tienes notificaciones nuevas
+                    </div>
+                  ) : (
+                    notificaciones.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => abrirDetalleNotificacion(n)}
+                        className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 last:border-0 text-sm cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-800 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-800/50"
+                      >
+                        <p className="font-medium">{n.titulo}</p>
+                        <p className="text-xs mt-0.5">{n.mensaje}</p>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                          {formatearFecha(n.fecha_creacion)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+
+                  {/* ── Botón para ver leídas ── */}
+                  <button
+                    onClick={handleVerLeidas}
+                    className="w-full px-4 py-2.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 border-b border-zinc-50 dark:border-zinc-800 transition-colors"
+                  >
+                    {mostrarLeidas ? "Ocultar leídas" : "Ver leídas"}
+                  </button>
+
+                  {/* ── Leídas (colapsable, con paginación) ── */}
+                  {mostrarLeidas && (
+                    <>
+                      {notificacionesLeidas.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => abrirDetalleNotificacion(n)}
+                          className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 last:border-0 text-sm cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-500 dark:text-zinc-400"
+                        >
+                          <p className="font-medium">{n.titulo}</p>
+                          <p className="text-xs mt-0.5">{n.mensaje}</p>
+                          <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                            {formatearFecha(n.fecha_creacion)}
+                          </span>
+                        </div>
+                      ))}
+
+                      {notificacionesLeidas.length === 0 && !cargandoLeidas && (
+                        <div className="px-4 py-4 text-center text-xs text-zinc-400 dark:text-zinc-500">
+                          No hay notificaciones leídas
+                        </div>
+                      )}
+
+                      {hayMasLeidas && (
+                        <button
+                          onClick={cargarMasLeidas}
+                          disabled={cargandoLeidas}
+                          className="w-full px-4 py-2.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 disabled:opacity-50 transition-colors"
+                        >
+                          {cargandoLeidas ? "Cargando..." : "Cargar más"}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {/* ─────────────────────────────────────── */}
 
           <div className="flex items-center gap-2 text-sm">
             <div className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">

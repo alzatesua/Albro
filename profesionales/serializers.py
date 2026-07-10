@@ -35,8 +35,6 @@ class CambiarEstadoProfesionalSerializer(serializers.ModelSerializer):
 
 
 def geocodificar_direccion(direccion: str) -> tuple[float, float]:
-
-    # --- 1. Intentar con Nominatim (gratis) ---
     try:
         url = "https://nominatim.openstreetmap.org/search"
         params = {
@@ -55,35 +53,8 @@ def geocodificar_direccion(direccion: str) -> tuple[float, float]:
         if resultados:
             return float(resultados[0]["lat"]), float(resultados[0]["lon"])
 
-    except Exception:
-        pass  # Si Nominatim falla, caemos a Google
-
-    # --- 2. Fallback: Google Geocoding API ---
-    try:
-        api_key = settings.GOOGLE_GEOCODING_API_KEY
-        if not api_key:
-            raise serializers.ValidationError(
-                "No se encontró la dirección y no hay API key de Google configurada."
-            )
-
-        url = "https://maps.googleapis.com/maps/api/geocode/json"
-        params = {
-            "address": direccion,
-            "key": api_key,
-            "region": "co",
-            "language": "es",
-        }
-
-        response = httpx.get(url, params=params, timeout=5)
-        response.raise_for_status()
-        data = response.json()
-
-        if data["status"] == "OK":
-            location = data["results"][0]["geometry"]["location"]
-            return float(location["lat"]), float(location["lng"])
-
         raise serializers.ValidationError(
-            f"No se encontró la dirección. Estado Google: {data['status']}"
+            "No se encontró la dirección con Nominatim."
         )
 
     except serializers.ValidationError:
@@ -91,7 +62,7 @@ def geocodificar_direccion(direccion: str) -> tuple[float, float]:
 
     except Exception as exc:
         raise serializers.ValidationError(
-            f"Error al contactar Google Geocoding: {exc}"
+            f"Error al contactar Nominatim: {exc}"
         )
 
 
@@ -147,24 +118,40 @@ class PerfilProfesionalSerializer(serializers.ModelSerializer):
         departamento = attrs.pop('departamento_id', None)
         municipio    = attrs.pop('municipio_id', None)
 
+        instance = getattr(self, 'instance', None)
+
         # Validar que el municipio pertenece al departamento solo si ambos vienen
+        nueva_ubicacion = None
         if municipio and departamento:
             if municipio.departamento_id != departamento.id:
                 raise serializers.ValidationError(
                     f"El municipio '{municipio.nombre}' no pertenece al departamento '{departamento.nombre}'."
                 )
             # Construir ubicacion automáticamente solo si ambos están presentes
-            attrs['ubicacion'] = f"{municipio.nombre}, {departamento.nombre}"
+            nueva_ubicacion = f"{municipio.nombre}, {departamento.nombre}"
+            attrs['ubicacion'] = nueva_ubicacion
 
-        # Geocodificar solo si no hay coordenadas ya guardadas
-        if not attrs.get('latitud') or not attrs.get('longitud'):
-            direccion = attrs.get('direccion', '')
+        # ¿Cambió la dirección o la ubicación en este request?
+        direccion_anterior = instance.direccion if instance else None
+        ubicacion_anterior = instance.ubicacion if instance else None
 
-            # En PATCH puede que ya tenga coordenadas en la instancia
-            instance = getattr(self, 'instance', None)
-            if instance and instance.latitud and instance.longitud:
-                # Ya tiene coordenadas guardadas, no geocodificar
-                return attrs
+        direccion_nueva = attrs.get('direccion', direccion_anterior)
+        ubicacion_nueva = attrs.get('ubicacion', ubicacion_anterior)
+
+        cambio_direccion = instance is None or direccion_nueva != direccion_anterior
+        cambio_ubicacion = instance is None or ubicacion_nueva != ubicacion_anterior
+
+        # Geocodificar si: no hay coordenadas guardadas, O si dirección/ubicación cambiaron
+        ya_tiene_coords = instance and instance.latitud and instance.longitud
+        debe_geocodificar = (
+            not attrs.get('latitud') and not attrs.get('longitud')
+            and (not ya_tiene_coords or cambio_direccion or cambio_ubicacion)
+        )
+
+      
+
+        if debe_geocodificar:
+            direccion = direccion_nueva or ''
 
             if not direccion:
                 raise serializers.ValidationError(
@@ -174,8 +161,7 @@ class PerfilProfesionalSerializer(serializers.ModelSerializer):
             if municipio and departamento:
                 query = f"{direccion}, {municipio.nombre}, {departamento.nombre}, Colombia"
             else:
-                # Usar ubicacion existente como contexto si no vienen dep/mun
-                ubicacion = attrs.get('ubicacion') or (instance.ubicacion if instance else '')
+                ubicacion = ubicacion_nueva or ''
                 query = f"{direccion}, {ubicacion}, Colombia".strip(', ')
 
             lat, lon = geocodificar_direccion(query)

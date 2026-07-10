@@ -203,8 +203,8 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         cita.estado = 'completada'
         cita.save()
-        notificar_cita(cita, tipo="reagendada", actor_id=request.user.id)
-        
+        notificar_cita(cita, tipo="completada", actor_id=request.user.id)
+
         serializer = self.get_serializer(cita)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -272,7 +272,7 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         # Esta llamada es la que dispara el evento por WebSocket,
         # igual que en cancel/confirmar/completar.
-        notificar_cita(cita, tipo="reagendada")
+        notificar_cita(cita, tipo="reagendada", actor_id=request.user.id)
 
         serializer = self.get_serializer(cita)
         return Response(

@@ -288,17 +288,11 @@ const AgendaSection = () => {
       setConfirmando(null);
     }
   };
-  const handleCompletar = async (citaId) => {
-    try {
-      setCompletando(citaId);
-      await completarCita(citaId);
-      setCitas((prev) => prev.filter((c) => c.id !== citaId));
-      setTotalCitas((c) => Math.max(0, c - 1));
-    } catch (err) {
-      setError(err.message || "No se pudo completar la cita.");
-    } finally {
-      setCompletando(null);
-    }
+  const handleEscogerCita = (cita) => {
+    setCitas((prev) => prev.filter((c) => c.id !== cita.id));
+    setTotalCitas((c) => Math.max(0, c - 1));
+    setCitaEnCurso(cita);
+    setDuracionCronometro(calcularDuracionSegundos(cita));
   };
   const handleCancelar = async (citaId) => {
     try {
@@ -621,18 +615,10 @@ const AgendaSection = () => {
                         {tab === "confirmada" && (
                           <>
                             <button
-                              onClick={() => handleCompletar(cita.id)}
-                              disabled={completando === cita.id}
-                              className="flex items-center gap-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1.5 text-xs font-medium hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              onClick={() => handleEscogerCita(cita)}
+                              className="flex items-center gap-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1.5 text-xs font-medium hover:bg-emerald-500/20 transition-colors"
                             >
-                              {completando === cita.id ? (
-                                "..."
-                              ) : (
-                                <>
-                                  {/* <Check className="w-3.5 h-3.5" /> */}
-                                  Escoger
-                                </>
-                              )}
+                              Escoger
                             </button>
 
                             <button

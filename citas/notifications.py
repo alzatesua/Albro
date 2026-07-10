@@ -26,6 +26,8 @@ def notificar_cita(cita, tipo, actor_id=None):
     if actor_id is not None:
         destinatarios_ids.discard(actor_id)
 
+    channel_layer = get_channel_layer()  
+
     for user_id in destinatarios_ids:
         crear_notificacion(
             usuario_id=user_id,
@@ -36,4 +38,13 @@ def notificar_cita(cita, tipo, actor_id=None):
             data=data,
             content_type_app="citas.Cita",
             object_id=cita.id,
+        )
+
+        async_to_sync(channel_layer.group_send)(
+            f"user_{user_id}",
+            {
+                "type": "cita_actualizada",
+                "tipo": tipo,
+                "cita": data,
+            }
         )

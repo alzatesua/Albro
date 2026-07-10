@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Search, CalendarClock } from "lucide-react";
 import Toast from "../../components/Toast";
 import ModalBuscarServicio from "./ModalBuscarServicio";
+import { getUbicacionesProfesionales } from "../../services/api";
 
 const ZOOM_DEFAULT = 15;
 
@@ -19,6 +20,40 @@ const fixLeafletIcons = () => {
   });
 };
 
+const getMediaBaseUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8006/api";
+  return apiUrl.replace(/\/api\/?$/, "");
+};
+
+// Genera un pin con la foto de perfil (o iniciales) recortada en círculo dentro de la cabeza
+const crearAvatarPinIcon = ({ imagenUrl, iniciales, id }) => {
+  const clipId = `clip-prof-${id}`;
+
+  return {
+    className: "",
+    html: `
+      <svg width="52" height="68" viewBox="0 0 52 68" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="${clipId}">
+            <circle cx="26" cy="26" r="22"/>
+          </clipPath>
+        </defs>
+        <path d="M26 0C11.64 0 0 11.64 0 26c0 17.875 26 42.25 26 42.25s26-24.375 26-42.25C52 11.64 40.36 0 26 0z" fill="#18181b"/>
+
+        ${
+          imagenUrl
+            ? `<image href="${imagenUrl}" x="4" y="4" width="44" height="44" clip-path="url(#${clipId})" preserveAspectRatio="xMidYMid slice"/>`
+            : `<circle cx="26" cy="26" r="22" fill="#18181b"/>
++              <text x="26" y="31" text-anchor="middle" font-family="sans-serif" font-weight="600" font-size="15" fill="#ffffff">${iniciales}</text>`
+        }
+      </svg>
+    `,
+    iconSize: [52, 68],
+    iconAnchor: [26, 68],
+    popupAnchor: [0, -68],
+  };
+};
+
 // ─── Mapa principal ─────────────────────────────────────────────────────────
 const MapaSection = () => {
   const mapRef = useRef(null);
@@ -30,6 +65,7 @@ const MapaSection = () => {
 
   const [toast, setToast] = useState(null);
   const toastTimeoutRef = useRef(null);
+  const marcadoresProfesionalesRef = useRef([]);
 
   const mostrarToast = (mensaje, tipo = "success") => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -134,6 +170,62 @@ const MapaSection = () => {
     }, 8000);
 
     return () => clearInterval(intervalo);
+  }, [estado.listo]);
+
+  useEffect(() => {
+    if (!estado.listo || !mapInstanceRef.current) return;
+
+    let cancelado = false;
+
+    const cargarProfesionales = async () => {
+      try {
+        const data = await getUbicacionesProfesionales();
+        if (cancelado || !mapInstanceRef.current) return;
+
+        const L = (await import("leaflet")).default;
+        const mediaBaseUrl = getMediaBaseUrl();
+
+        // Limpia marcadores previos (por si se vuelve a cargar)
+        marcadoresProfesionalesRef.current.forEach((m) => m.remove());
+        marcadoresProfesionalesRef.current = [];
+
+        (data.profesionales || []).forEach((prof, index) => {
+          const lat = parseFloat(prof.latitud);
+          const lng = parseFloat(prof.longitud);
+          if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+          const iniciales = `${prof.nombre?.[0] || ""}${prof.apellido?.[0] || ""}`.toUpperCase();
+          const imagenUrl = prof.imagen_perfil ? `${mediaBaseUrl}${prof.imagen_perfil}` : null;
+
+          const avatarPinIcon = L.divIcon(
+           crearAvatarPinIcon({
+             imagenUrl,
+             iniciales,
+             id: prof.id ?? index,
+           })
+         );
+        
+         const marker = L.marker([lat, lng], { icon: avatarPinIcon })
+            .addTo(mapInstanceRef.current)
+            .bindPopup(`
+              <div style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b">
+                <strong>${prof.nombre} ${prof.apellido}</strong><br/>
+                <span style="color:#71717a">${prof.direccion || ""}</span>
+              </div>
+            `);
+
+          marcadoresProfesionalesRef.current.push(marker);
+        });
+      } catch (err) {
+        console.error("Error cargando ubicaciones de profesionales:", err);
+      }
+    };
+
+    cargarProfesionales();
+
+    return () => {
+      cancelado = true;
+    };
   }, [estado.listo]);
 
   const reintentar = () => {

@@ -2,11 +2,16 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import Toast from "../../components/Toast";
-import { actualizarImagenPerfil, getPerfilProfesional, actualizarDatosPersonales, actualizarMisHorarios, getMisServicios, eliminarServicio } from "@/services/api";
+import {
+  actualizarImagenPerfil, getPerfilProfesional, actualizarDatosPersonales,
+  actualizarMisHorarios, getMisServicios, eliminarServicio,
+  getDepartamentos, getMunicipios, getGeocodingApiKey,
+} from "@/services/api";
 import {
   Camera, Phone, Scissors, FileText, MapPin, Store,
   CalendarCheck, Clock, Plus, Trash2, DollarSign, User, X
 } from "lucide-react";
+import ModalUbicacionMapa from "./ModalUbicacionMapa";
 
 
 const TABS = [
@@ -190,6 +195,13 @@ const PerfilSection = () => {
   const [horarios, setHorarios] = useState(HORARIOS_BASE);
   const [agregandoHorario, setAgregandoHorario] = useState(false);
 
+  const [departamentos, setDepartamentos] = useState([]);
+  const [municipios, setMunicipios] = useState([]);
+  const [departamentoId, setDepartamentoId] = useState("");
+  const [municipioId, setMunicipioId] = useState("");
+  const [cargandoMunicipios, setCargandoMunicipios] = useState(false);
+  const ubicacionInicializadaRef = useRef(false);
+
   const diasActivosLista = DIAS_SEMANA.filter(({ key }) => horarios[key].activo);
   const diasInactivos = DIAS_SEMANA.filter(({ key }) => !horarios[key].activo);
   const hayHorarioInvalido = diasActivosLista.some(({ key }) => !horarioEsValido(horarios[key]));
@@ -220,6 +232,8 @@ const PerfilSection = () => {
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const [errorImagen, setErrorImagen] = useState(null);
   const inputFileRef = useRef(null);
+  const [mostrarModalUbicacion, setMostrarModalUbicacion] = useState(false);
+  const [coordsExactas, setCoordsExactas] = useState({ latitud: null, longitud: null });
 
   // ── Cargar (o recargar) datos del profesional desde la API ──
   // mostrarCargando=false se usa cuando refrescamos después de guardar,
@@ -244,6 +258,7 @@ const PerfilSection = () => {
       setHorarios(mapearHorariosDesdeApi(data.horarios_atencion));
       setImagenPerfil(getMediaUrl(data.imagen_perfil));
       setDisponible(data.estado?.codigo === "disponible");
+      setCoordsExactas({ latitud: data.latitud, longitud: data.longitud }); 
       return data;
     } catch (err) {
       console.error("Error cargando perfil profesional:", err);
@@ -275,6 +290,12 @@ const PerfilSection = () => {
   useEffect(() => {
     cargarServicios();
   }, [cargarServicios]);
+
+  useEffect(() => {
+    getDepartamentos()
+      .then(setDepartamentos)
+      .catch((err) => console.error("Error cargando departamentos:", err));
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("perfil_tab_activa", tabActiva);
@@ -324,15 +345,52 @@ const PerfilSection = () => {
     ubicacion: form.ubicacion,
     nombre_local: form.especialidad,
     descripcion: form.bio,
+    departamento_id: departamentoId,
+    municipio_id: municipioId,
+    latitud: coordsExactas.latitud,
+    longitud: coordsExactas.longitud,
   });
+
+  const geocodificarDireccion = async (direccionCompleta) => {
+    const apiKey = getGeocodingApiKey();
+    if (!apiKey) {
+      console.warn("No hay API key de geocodificación configurada (VITE_GOOGLE_GEOCODING_API_KEY)");
+      return null;
+    }
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(direccionCompleta)}&key=${apiKey}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.status === "OK" && data.results?.[0]) {
+        const { lat, lng } = data.results[0].geometry.location;
+        return { latitud: lat, longitud: lng };
+      }
+      console.warn("Geocodificación sin resultados:", data.status);
+      return null;
+    } catch (err) {
+      console.error("Error geocodificando dirección:", err);
+      return null;
+    }
+  };
 
   const guardar = async () => {
     setGuardando(true);
     try {
-      await actualizarDatosPersonales(construirPayloadDatosPersonales());
+      const payload = construirPayloadDatosPersonales();
+
+      // Si hay dirección y ubicación, intenta obtener sus coordenadas para el mapa
+      if (form.direccion && form.ubicacion) {
+        const direccionCompleta = `${form.direccion}, ${form.ubicacion}`;
+        const coords = await geocodificarDireccion(direccionCompleta);
+        if (coords) {
+          payload.latitud = coords.latitud;
+          payload.longitud = coords.longitud;
+        }
+      }
+
+      await actualizarDatosPersonales(payload);
       await actualizarMisHorarios(construirPayloadHorarios());
 
-     
       await cargarPerfil({ mostrarCargando: false });
 
       mostrarToast("Tus cambios se guardaron correctamente");
@@ -375,6 +433,62 @@ const PerfilSection = () => {
     } finally {
       setSubiendoImagen(false);
       e.target.value = ""; // permite volver a elegir el mismo archivo si quiere
+    }
+  };
+
+
+
+  useEffect(() => {
+    if (ubicacionInicializadaRef.current) return;
+    if (!departamentos.length || !form.ubicacion) return;
+
+    const partes = form.ubicacion.split(",").map((p) => p.trim());
+    if (partes.length < 2) return;
+
+    const [nombreMunicipio, nombreDepartamento] = partes;
+    const depto = departamentos.find(
+      (d) => d.nombre.toLowerCase() === nombreDepartamento.toLowerCase()
+    );
+    if (!depto) return;
+
+    ubicacionInicializadaRef.current = true;
+    setDepartamentoId(String(depto.id));
+
+    getMunicipios(depto.id)
+      .then((data) => {
+        setMunicipios(data);
+        const muni = data.find(
+          (m) => m.nombre.toLowerCase() === nombreMunicipio.toLowerCase()
+        );
+        if (muni) setMunicipioId(String(muni.id));
+      })
+      .catch((err) => console.error("Error cargando municipios:", err));
+  }, [departamentos, form.ubicacion]);
+
+  const manejarCambioDepartamento = async (id) => {
+    setDepartamentoId(id);
+    setMunicipioId("");
+    setMunicipios([]);
+    actualizar("ubicacion", "");
+    if (!id) return;
+
+    setCargandoMunicipios(true);
+    try {
+      const data = await getMunicipios(id);
+      setMunicipios(data);
+    } catch (err) {
+      console.error("Error cargando municipios:", err);
+    } finally {
+      setCargandoMunicipios(false);
+    }
+  };
+
+  const manejarCambioMunicipio = (id) => {
+    setMunicipioId(id);
+    const muni = municipios.find((m) => String(m.id) === id);
+    const depto = departamentos.find((d) => String(d.id) === departamentoId);
+    if (muni && depto) {
+      actualizar("ubicacion", `${muni.nombre}, ${depto.nombre}`);
     }
   };
 
@@ -539,20 +653,73 @@ return (
                   />
                 </Campo>
                 <Campo icono={MapPin} label="Dirección">
-                  <input
-                    className={inputCls}
-                    value={form.direccion}
-                    onChange={(e) => actualizar("direccion", e.target.value)}
-                    placeholder="Cra 6 26-74"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarModalUbicacion(true)}
+                    className={`group w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-sm transition-colors ${
+                      form.direccion
+                        ? "bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700 hover:border-emerald-400 dark:hover:border-emerald-500/60 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/5"
+                        : "border-dashed border-emerald-300 dark:border-emerald-500/40 bg-emerald-50/40 dark:bg-emerald-500/5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:border-emerald-400 dark:hover:border-emerald-500/60"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                          form.direccion
+                            ? "bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-500/15 group-hover:text-emerald-600 dark:group-hover:text-emerald-400"
+                            : "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        }`}
+                      >
+                        <MapPin size={14} />
+                      </span>
+                      <span
+                        className={`truncate ${
+                          form.direccion
+                            ? "text-zinc-800 dark:text-zinc-100"
+                            : "text-emerald-700 dark:text-emerald-400 font-medium"
+                        }`}
+                      >
+                        {form.direccion || "Fijar ubicación en el mapa"}
+                      </span>
+                    </span>
+
+                    <span
+                      className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${
+                        form.direccion
+                          ? "text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-700 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-500/15 group-hover:text-emerald-600 dark:group-hover:text-emerald-400"
+                          : "text-white bg-emerald-500 group-hover:bg-emerald-600"
+                      }`}
+                    >
+                      {form.direccion ? "Cambiar" : "Abrir mapa"}
+                    </span>
+                  </button>
                 </Campo>
-                <Campo icono={MapPin} label="Ubicación">
-                  <input
+                <Campo icono={MapPin} label="Departamento">
+                  <select
                     className={inputCls}
-                    value={form.ubicacion}
-                    onChange={(e) => actualizar("ubicacion", e.target.value)}
-                    placeholder="Municipio, Departamento"
-                  />
+                    value={departamentoId}
+                    onChange={(e) => manejarCambioDepartamento(e.target.value)}
+                  >
+                    <option value="">Selecciona un departamento</option>
+                    {departamentos.map((d) => (
+                      <option key={d.id} value={d.id}>{d.nombre}</option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo icono={MapPin} label="Municipio">
+                  <select
+                    className={inputCls}
+                    value={municipioId}
+                    onChange={(e) => manejarCambioMunicipio(e.target.value)}
+                    disabled={!departamentoId || cargandoMunicipios}
+                  >
+                    <option value="">
+                      {cargandoMunicipios ? "Cargando..." : "Selecciona un municipio"}
+                    </option>
+                    {municipios.map((m) => (
+                      <option key={m.id} value={m.id}>{m.nombre}</option>
+                    ))}
+                  </select>
                 </Campo>
               </div>
               <Campo icono={FileText} label="Sobre ti">
@@ -784,6 +951,19 @@ return (
         </div>
         </div>
       </div>
+
+      {mostrarModalUbicacion && (
+        <ModalUbicacionMapa
+          latInicial={coordsExactas.latitud}
+          lngInicial={coordsExactas.longitud}
+          onCerrar={() => setMostrarModalUbicacion(false)}
+          onConfirmar={({ latitud, longitud, direccion }) => {
+            setCoordsExactas({ latitud, longitud });
+            actualizar("direccion", direccion);
+            setMostrarModalUbicacion(false);
+          }}
+        />
+      )}
     </>
   );
 };

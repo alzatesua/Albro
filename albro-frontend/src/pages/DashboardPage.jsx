@@ -22,6 +22,7 @@ import { usePerfilProfesional } from "@/hooks/usePerfilProfesional";
 import Portal from "@/components/ui/Portal";
 import { getNotificaciones, marcarNotificacionLeida, marcarTodasNotificacionesLeidas } from "@/services/api"; // ajusta el path real
 import { useNotificacionesWS } from "@/hooks/useNotificacionesWS";
+import Toast from "@/components/Toast";
 
 // ─── Hook modo oscuro ─────────────────────────────────────────────────────────
 const useDarkMode = () => {
@@ -137,11 +138,7 @@ const DashboardPage = () => {
   // ── NUEVO: estado global de notificación ────────────────────────────────
   const [notificacion, setNotificacion] = useState(null); // { tipo: "exito" | "error", mensaje }
 
-  useEffect(() => {
-    if (!notificacion) return;
-    const t = setTimeout(() => setNotificacion(null), 3500);
-    return () => clearTimeout(t);
-  }, [notificacion]);
+
   // ──────────────────────────────────────────────────────────────────────────
 
   const esProfesional = usuario?.rol === "profesional";
@@ -194,8 +191,23 @@ const DashboardPage = () => {
   const [mostrarNotificaciones, setMostrarNotificaciones] = useState(false);
   const [cargandoNotificaciones, setCargandoNotificaciones] = useState(false);
   const notifRef = useRef(null);
+  
 
   const hayNuevas = notificaciones.length > 0;
+
+  // ── Animación shake de la campana cada 10s mientras haya notificaciones nuevas ──
+  const [animarCampana, setAnimarCampana] = useState(false);
+
+  useEffect(() => {
+    if (!hayNuevas) return;
+
+    const intervalo = setInterval(() => {
+      setAnimarCampana(true);
+      setTimeout(() => setAnimarCampana(false), 600);
+    }, 10000);
+
+    return () => clearInterval(intervalo);
+  }, [hayNuevas]);
 
   const cargarNotificaciones = async () => {
     setCargandoNotificaciones(true);
@@ -297,40 +309,37 @@ const DashboardPage = () => {
     }
   };
 
+
   // Callback estable para agregar la notificación nueva al inicio de la lista
   const manejarNuevaNotificacion = useCallback((notif) => {
     setNotificaciones((prev) => {
-      // Evita duplicados si el WS reenvía algo que ya llegó por polling/carga inicial
       if (prev.some((n) => n.id === notif.id)) return prev;
       return [notif, ...prev];
     });
+
+    setNotificacion({ tipo: "exito", mensaje: notif.mensaje, key: Date.now() }); // 👈 agregado key
   }, []);
 
   useNotificacionesWS({ usuario, onNuevaNotificacion: manejarNuevaNotificacion });
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col transition-colors duration-300">
+     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col transition-colors duration-300">
 
-      {/* ── NUEVO: Toast global, flota sobre todo el Dashboard ── */}
-      {notificacion && (
-        <Portal>
-          <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
-            <div
-              className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium shadow-lg animate__animated animate__fadeInDown
-                ${notificacion.tipo === "exito"
-                  ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
-                  : "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"}`}
-            >
-              {notificacion.tipo === "exito" ? (
-                <CheckCircle2 size={18} className="shrink-0" />
-              ) : (
-                <XCircle size={18} className="shrink-0" />
-              )}
-              {notificacion.mensaje}
-            </div>
-          </div>
-        </Portal>
-      )}
+      <style>{`
+        @keyframes shake-suave {
+          10%, 90% { transform: translateX(-1px); }
+          20%, 80% { transform: translateX(2px); }
+          30%, 50%, 70% { transform: translateX(-3px); }
+          40%, 60% { transform: translateX(3px); }
+        }
+        .animate-shake-suave {
+          animation: shake-suave 0.6s ease-in-out;
+        }
+      `}</style>
+
+      {/* ── Toast global, flota sobre todo el Dashboard ── */}
+      <Toast toast={notificacion} onClose={() => setNotificacion(null)} />
+        
 
       {/* ── Modal de detalle de notificación ── */}
       {notificacionSeleccionada && (
@@ -456,10 +465,16 @@ const DashboardPage = () => {
               onClick={abrirNotificaciones}
               className="relative w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             >
-              <Bell size={16} />
-              {hayNuevas && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-900" />
-              )}
+              <div
+                className={`relative flex items-center justify-center ${
+                  animarCampana ? "animate-shake-suave" : ""
+                }`}
+              >
+                <Bell size={16} />
+                {hayNuevas && (
+                  <span className="absolute top-0 -right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-900" />
+                )}
+              </div>
             </button>
 
             {mostrarNotificaciones && (

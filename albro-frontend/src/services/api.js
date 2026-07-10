@@ -231,6 +231,11 @@ export const marcarTodasNotificacionesLeidas = () =>
     method: "POST",
   });
 
+
+//----- Mapa ----ç
+export const getUbicacionesProfesionales = () =>
+  request("/profesionales/ubicaciones/");
+
 // ─── Websockets ──────────────────────────────────────────────────────────
 
 export const getWsTicket = () =>

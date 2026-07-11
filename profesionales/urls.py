@@ -14,6 +14,8 @@ from .views import (
     MisHorariosView,
     AgendaProfesionalView,
     ListarProfesionalesUbicacionView,
+    BuscarProfesionalesView,
+    ServiciosDeProfesionalView,
 )
 
 urlpatterns = [
@@ -29,8 +31,11 @@ urlpatterns = [
         name='estado-profesional-detalle',
     ),
     path('mis-horarios/', MisHorariosView.as_view(), name='mis-horarios'),
+    path('buscar/', BuscarProfesionalesView.as_view(), name='buscar-profesionales'),
     path('<int:profesional_id>/agenda/', AgendaProfesionalView.as_view(), name='agenda-profesional'),
     path('ubicaciones/', ListarProfesionalesUbicacionView.as_view(), name='profesionales-ubicaciones'),
+    path('<int:profesional_id>/servicios/', ServiciosDeProfesionalView.as_view(), name='servicios-profesional'),
+    path('<int:profesional_id>/agenda/', AgendaProfesionalView.as_view(), name='agenda-profesional'),
 ]
 
 if settings.DEBUG:

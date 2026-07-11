@@ -230,11 +230,30 @@ export const marcarTodasNotificacionesLeidas = () =>
   request(`/notificaciones/marcar-todas-leidas/`, {
     method: "POST",
   });
-
+// ─── Servicios (crear) ─────────────────────────────────────────────────────
+export const agregarServicio = ({ servicio_id, precio, duracion_minutos }) =>
+  request("/servicios/mis-servicios/", {
+    method: "POST",
+    body: JSON.stringify({ servicio_id, precio, duracion_minutos }),
+  });
 
 //----- Mapa ----ç
 export const getUbicacionesProfesionales = () =>
   request("/profesionales/ubicaciones/");
+
+// ─── Búsqueda ────────────────────────────────────────────────────────────
+export const buscarProfesionales = ({ q, servicio, categoria } = {}) => {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (servicio) params.set("servicio", servicio);
+  if (categoria) params.set("categoria", categoria);
+
+  const query = params.toString();
+  return request(`/profesionales/buscar/${query ? `?${query}` : ""}`);
+};
+
+export const getServiciosDeProfesional = (profesionalId) =>
+  request(`/profesionales/${profesionalId}/servicios/`);
 
 // ─── Websockets ──────────────────────────────────────────────────────────
 

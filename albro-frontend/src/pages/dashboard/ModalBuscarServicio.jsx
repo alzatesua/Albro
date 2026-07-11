@@ -8,6 +8,7 @@ import {
   getProfesionalesPorServicio,
   getAgendaProfesional,
   crearCita,
+  getServiciosDeProfesional,
 } from "@/services/api";
 
 const MEDIA_BASE_URL = import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "");
@@ -78,7 +79,7 @@ const Stepper = ({ pasoActual, pasos }) => (
 );
 
 // ─── Modal de búsqueda ──────────────────────────────────────────────────────
-const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar }) => {
+const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar, profesionalPreseleccionado }) => {
   const { usuario } = useAuth();
   const [pasoActual, setPasoActual] = useState(1);
 
@@ -117,14 +118,37 @@ const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar }) => {
   );
 
   // ── Cargar categorías al montar el modal ──────────────────────────────
-  useEffect(() => {
-    setCargandoCategorias(true);
-    setErrorCategorias("");
+useEffect(() => {
+  setCargandoCategorias(true);
+  setErrorCategorias("");
+
+  if (profesionalPreseleccionado) {
+    getServiciosDeProfesional(profesionalPreseleccionado.id)
+      .then((data) => {
+        const serviciosProf = data.servicios || [];
+        // Deduplica categorías a partir de los servicios reales del profesional
+        const vistas = new Set();
+        const categoriasDelProfesional = [];
+        serviciosProf.forEach((s) => {
+          if (s.categoria != null && !vistas.has(s.categoria)) {
+            vistas.add(s.categoria);
+            categoriasDelProfesional.push({
+              id: s.categoria,
+              nombre: s.categoria_nombre,
+            });
+          }
+        });
+        setCategorias(categoriasDelProfesional);
+      })
+      .catch((err) => setErrorCategorias(err.message || "No se pudieron cargar las categorías."))
+      .finally(() => setCargandoCategorias(false));
+  } else {
     getCategorias()
       .then((data) => setCategorias(data))
       .catch((err) => setErrorCategorias(err.message || "No se pudieron cargar las categorías."))
       .finally(() => setCargandoCategorias(false));
-  }, []);
+  }
+}, [profesionalPreseleccionado]);
 
   // ── Cargar servicios cuando cambia la categoría seleccionada ──────────
   useEffect(() => {
@@ -134,11 +158,19 @@ const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar }) => {
     }
     setCargandoServicios(true);
     setErrorServicios("");
-    getServiciosPorCategoria(categoriaSel)
+
+    const promesa = profesionalPreseleccionado
+      ? getServiciosDeProfesional(profesionalPreseleccionado.id).then((data) =>
+          // filtramos localmente por la categoría elegida, ya que el endpoint trae TODOS los servicios del profesional
+          (data.servicios || []).filter((s) => s.categoria === categoriaSel)
+        )
+      : getServiciosPorCategoria(categoriaSel);
+
+    promesa
       .then((data) => setServicios(data))
       .catch((err) => setErrorServicios(err.message || "No se pudieron cargar los servicios."))
       .finally(() => setCargandoServicios(false));
-  }, [categoriaSel]);
+  }, [categoriaSel, profesionalPreseleccionado]);
 
   // ── Cargar profesionales cuando se entra al paso 4 en modo "profesional" ──
   useEffect(() => {
@@ -184,13 +216,21 @@ const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar }) => {
 
   const handleServicio = (id) => {
     setServicioSel(id);
-    setModo(null);
     setPrecio("");
-    setProfesionalSel(null);
     setFecha("");
     setAgenda(null);
     setCupoSel(null);
-    setTimeout(() => setPasoActual(3), 300);
+
+    if (profesionalPreseleccionado) {
+      // Ya sabemos quién es el profesional (viene del pin del mapa): saltamos Modalidad y Profesional
+      setModo("profesional");
+      setProfesionalSel(profesionalPreseleccionado.id);
+      setTimeout(() => setPasoActual(5), 300);
+    } else {
+      setModo(null);
+      setProfesionalSel(null);
+      setTimeout(() => setPasoActual(3), 300);
+    }
   };
 
   const handleModo = (nuevoModo) => {
@@ -280,6 +320,8 @@ const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar }) => {
     console.log("Payload:", payload);
     onBuscar(payload);
   };
+
+  
 
   return (
     <Portal>
@@ -371,7 +413,7 @@ const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar }) => {
           {/* ── Paso 3: Modalidad ───────────────────────────────────────── */}
           {pasoActual === 3 && (
             <div className="grid grid-cols-2 gap-4 min-h-[180px]">
-              <button
+             {/* <button
                 onClick={() => handleModo("subasta")}
                 className={`flex flex-col items-center justify-center gap-3 rounded-xl border px-4 py-8 transition-colors
                   ${modo === "subasta"
@@ -379,13 +421,14 @@ const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar }) => {
                     : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"}`}
               >
                 <Gavel size={28} className={modo === "subasta" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"} />
+                
                 <span className={`text-sm text-center ${modo === "subasta" ? "font-medium text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>
                   Subastar servicio
                 </span>
                 <span className="text-[11px] text-zinc-400 dark:text-zinc-500 text-center leading-tight">
                   Pon tu precio y deja que los profesionales te contacten
                 </span>
-              </button>
+              </button>*/}
 
               <button
                 onClick={() => handleModo("profesional")}
@@ -521,25 +564,28 @@ const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar }) => {
           {/* ── Paso 5 (profesional): fecha y hora ──────────────────────── */}
           {pasoActual === 5 && modo === "profesional" && (
             <div className="min-h-[180px]">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
-                  <CalendarDays size={15} />
-                  Elige fecha y hora
-                </p>
-
-                {agenda && (
-                  <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5">
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                      ${Number(agenda.precio).toLocaleString("es-CO")}
+              {profesionalPreseleccionado && (
+                <div className="flex items-center gap-2.5 mb-4 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                  {profesionalPreseleccionado.imagen_perfil ? (
+                    <img
+                      src={`${MEDIA_BASE_URL}${profesionalPreseleccionado.imagen_perfil}`}
+                      alt={`${profesionalPreseleccionado.nombre} ${profesionalPreseleccionado.apellido}`}
+                      className="w-9 h-9 rounded-full object-cover shrink-0 border border-zinc-200 dark:border-zinc-700"
+                    />
+                  ) : (
+                    <span className="w-9 h-9 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-semibold text-zinc-600 dark:text-zinc-300 shrink-0">
+                      {`${profesionalPreseleccionado.nombre?.[0] || ""}${profesionalPreseleccionado.apellido?.[0] || ""}`.toUpperCase()}
                     </span>
-                    <span className="w-px h-3 bg-zinc-300 dark:bg-zinc-600" />
-                    <span className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      <Clock size={12} />
-                      {agenda.duracion_minutos} min
-                    </span>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">Agendando con</p>
+                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100 truncate">
+                      {profesionalPreseleccionado.nombre} {profesionalPreseleccionado.apellido}
+                    </p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
 
               <div className="flex justify-center mb-4">
                 <input

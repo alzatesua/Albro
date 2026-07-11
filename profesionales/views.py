@@ -17,6 +17,10 @@ from datetime import datetime, date, timedelta
 from rest_framework.generics import get_object_or_404
 from servicios.models import Servicio, ServicioProfesional
 from .utils import generar_cupos_disponibles
+from django.contrib.postgres.search import TrigramSimilarity
+from django.db.models import Q, Value
+from django.db.models.functions import Greatest
+
 
 class RegistroProfesionalView(APIView):
     permission_classes = [IsAuthenticated]
@@ -377,3 +381,127 @@ class ListarProfesionalesUbicacionView(APIView):
             'profesionales': serializer.data,
             'total': len(serializer.data)
         })
+ 
+
+class BuscarProfesionalesView(APIView):
+    """
+    GET /api/profesionales/buscar/?q=<texto>&servicio=<id>&categoria=<texto_o_id>
+
+    Busqueda tolerante a errores de escritura, tildes y mayusculas.
+    'q' busca en el profesional Y en los servicios que ofrece (nombre/descripcion).
+    'categoria' busca por nombre O descripcion de la categoria.
+    """
+    permission_classes = [IsAuthenticated]
+
+    UMBRAL_SIMILITUD = 0.2
+
+    def get(self, request):
+        q = request.query_params.get('q', '').strip()
+        servicio_id = request.query_params.get('servicio')
+        categoria = request.query_params.get('categoria', '').strip()
+
+        profesionales = PerfilProfesional.objects.filter(
+            activo=True
+        ).select_related('usuario')
+
+        if q:
+            profesionales = profesionales.annotate(
+                similitud=Greatest(
+                    TrigramSimilarity('nombre_local', q),
+                    TrigramSimilarity('descripcion', q),
+                    TrigramSimilarity('usuario__nombre', q),
+                    TrigramSimilarity('usuario__apellido', q),
+                    TrigramSimilarity('servicios_ofrecidos__servicio__nombre', q),
+                    TrigramSimilarity('servicios_ofrecidos__servicio__descripcion', q),
+                )
+            ).filter(
+                Q(similitud__gte=self.UMBRAL_SIMILITUD) |
+                Q(nombre_local__icontains=q) |
+                Q(descripcion__icontains=q) |
+                Q(usuario__nombre__icontains=q) |
+                Q(usuario__apellido__icontains=q) |
+                Q(servicios_ofrecidos__servicio__nombre__icontains=q) |
+                Q(servicios_ofrecidos__servicio__descripcion__icontains=q) |
+                Q(servicios_ofrecidos__servicio__categoria__nombre__icontains=q) |
+                Q(servicios_ofrecidos__servicio__categoria__descripcion__icontains=q),
+                servicios_ofrecidos__activo=True,
+            ).order_by('-similitud')
+
+        if servicio_id:
+            profesionales = profesionales.filter(
+                servicios_ofrecidos__servicio_id=servicio_id,
+                servicios_ofrecidos__activo=True,
+            )
+
+        if categoria:
+            if categoria.isdigit():
+                profesionales = profesionales.filter(
+                    servicios_ofrecidos__servicio__categoria_id=categoria,
+                    servicios_ofrecidos__activo=True,
+                )
+            else:
+                profesionales = profesionales.annotate(
+                    similitud_categoria=Greatest(
+                        TrigramSimilarity('servicios_ofrecidos__servicio__categoria__nombre', categoria),
+                        TrigramSimilarity('servicios_ofrecidos__servicio__categoria__descripcion', categoria),
+                        TrigramSimilarity('servicios_ofrecidos__servicio__nombre', categoria),
+                        TrigramSimilarity('servicios_ofrecidos__servicio__descripcion', categoria),
+                    )
+                ).filter(
+                    Q(similitud_categoria__gte=self.UMBRAL_SIMILITUD) |
+                    Q(servicios_ofrecidos__servicio__categoria__nombre__icontains=categoria) |
+                    Q(servicios_ofrecidos__servicio__categoria__descripcion__icontains=categoria) |
+                    Q(servicios_ofrecidos__servicio__nombre__icontains=categoria) |
+                    Q(servicios_ofrecidos__servicio__descripcion__icontains=categoria),
+                    servicios_ofrecidos__activo=True,
+                )
+
+        profesionales = profesionales.select_related('usuario')
+
+        # Deduplicar preservando el orden de relevancia (el join con servicios_ofrecidos
+        # puede repetir al mismo profesional una vez por cada servicio que coincide)
+        vistos = set()
+        profesionales_unicos = []
+        for p in profesionales:
+            if p.id not in vistos:
+                vistos.add(p.id)
+                profesionales_unicos.append(p)
+
+        serializer = ProfesionalUbicacionSerializer(profesionales_unicos, many=True)
+        return Response({
+            'profesionales': serializer.data,
+            'total': len(profesionales_unicos),
+        })
+
+
+class ServiciosDeProfesionalView(APIView):
+    """
+    GET /api/profesionales/<profesional_id>/servicios/
+
+    Devuelve solo los servicios que ESE profesional ofrece activamente,
+    agrupables por categoria en el frontend si se necesita.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, profesional_id):
+        perfil = get_object_or_404(PerfilProfesional, pk=profesional_id, activo=True)
+
+        relaciones = ServicioProfesional.objects.filter(
+            profesional=perfil,
+            activo=True,
+        ).select_related('servicio', 'servicio__categoria')
+
+        servicios = [
+            {
+                'id': rel.servicio.id,
+                'nombre': rel.servicio.nombre,
+                'descripcion': rel.servicio.descripcion,
+                'categoria': rel.servicio.categoria_id,
+                'categoria_nombre': rel.servicio.categoria.nombre if rel.servicio.categoria else None,
+                'precio': str(rel.precio),
+                'duracion_minutos': rel.duracion_minutos,
+            }
+            for rel in relaciones
+        ]
+
+        return Response({'servicios': servicios})

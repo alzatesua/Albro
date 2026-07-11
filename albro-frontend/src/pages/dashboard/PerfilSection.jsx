@@ -11,7 +11,8 @@ import {
   Camera, Phone, Scissors, FileText, MapPin, Store,
   CalendarCheck, Clock, Plus, Trash2, DollarSign, User, X
 } from "lucide-react";
-import ModalUbicacionMapa from "./ModalUbicacionMapa";
+import ModalUbicacionMapa from "./ModalUbicacionMapa"
+import ModalAgregarServicio from "../../components/ModalAgregarServicio";;
 
 
 const TABS = [
@@ -235,6 +236,8 @@ const PerfilSection = () => {
   const [mostrarModalUbicacion, setMostrarModalUbicacion] = useState(false);
   const [coordsExactas, setCoordsExactas] = useState({ latitud: null, longitud: null });
 
+  
+
   // ── Cargar (o recargar) datos del profesional desde la API ──
   // mostrarCargando=false se usa cuando refrescamos después de guardar,
   // para no volver a mostrar la pantalla completa de "Cargando..."
@@ -302,6 +305,7 @@ const PerfilSection = () => {
   }, [tabActiva]);
 
   const [eliminandoServicioId, setEliminandoServicioId] = useState(null);
+  const [modalServicioAbierto, setModalServicioAbierto] = useState(false);
 
   const manejarEliminarServicio = async (serv) => {
     const confirmado = window.confirm(
@@ -737,79 +741,91 @@ return (
           {/* Servicios */}
           {tabActiva === "servicios" && (
             <div className="space-y-4">
-              {cargandoServicios && (
-                <p className="text-sm text-zinc-400 dark:text-zinc-500 text-center py-6">
-                  Cargando tus servicios...
-                </p>
-              )}
+              <div className="flex justify-end">
+               
+                <button
+                  type="button"
+                  onClick={() => setModalServicioAbierto(true)}
+                  className="animate__animated animate__rubberBand flex items-center gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  + Agregar servicio
+                </button>
+              </div>
+              <div className="space-y-4">
+                {cargandoServicios && (
+                  <p className="text-sm text-zinc-400 dark:text-zinc-500 text-center py-6">
+                    Cargando tus servicios...
+                  </p>
+                )}
 
-              {!cargandoServicios && errorServicios && (
-                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-sm text-red-600 dark:text-red-400">
-                  {errorServicios}
-                </div>
-              )}
+                {!cargandoServicios && errorServicios && (
+                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-sm text-red-600 dark:text-red-400">
+                    {errorServicios}
+                  </div>
+                )}
 
-              {!cargandoServicios && !errorServicios && serviciosOrdenados.length === 0 && (
-                <p className="text-sm text-zinc-400 dark:text-zinc-500 text-center py-6 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-700">
-                  Aún no tienes servicios registrados
-                </p>
-              )}
+                {!cargandoServicios && !errorServicios && serviciosOrdenados.length === 0 && (
+                  <p className="text-sm text-zinc-400 dark:text-zinc-500 text-center py-6 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-700">
+                    Aún no tienes servicios registrados
+                  </p>
+                )}
 
-             {!cargandoServicios && !errorServicios && serviciosOrdenados.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {serviciosOrdenados.map((serv) => {
-                    const eliminando = eliminandoServicioId === serv.id;
-                    return (
-                    <div
-                      key={serv.id}
-                      className="group relative flex flex-col gap-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => manejarEliminarServicio(serv)}
-                        disabled={eliminando}
-                      
-                        className="absolute top-3 right-3 w-7 h-7 rounded-lg flex items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-100 disabled:cursor-not-allowed"
-                        aria-label={`Quitar ${serv.servicio_nombre}`}
-                        title="Quitar servicio"
+              {!cargandoServicios && !errorServicios && serviciosOrdenados.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {serviciosOrdenados.map((serv) => {
+                      const eliminando = eliminandoServicioId === serv.id;
+                      return (
+                      <div
+                        key={serv.id}
+                        className="group relative flex flex-col gap-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
                       >
-                        <Trash2 size={14} />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => manejarEliminarServicio(serv)}
+                          disabled={eliminando}
+                        
+                          className="absolute top-3 right-3 w-7 h-7 rounded-lg flex items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-100 disabled:cursor-not-allowed"
+                          aria-label={`Quitar ${serv.servicio_nombre}`}
+                          title="Quitar servicio"
+                        >
+                          <Trash2 size={14} />
+                        </button>
 
-                      <div className="flex items-start justify-between gap-2 pr-6">
-                        <div className="flex items-center gap-2.5">
-                          <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 leading-tight">
-                            {serv.servicio_nombre}
-                          </h4>
+                        <div className="flex items-start justify-between gap-2 pr-6">
+                          <div className="flex items-center gap-2.5">
+                            <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 leading-tight">
+                              {serv.servicio_nombre}
+                            </h4>
+                          </div>
+
                         </div>
 
+                        <div className="flex items-center gap-2 pt-1 border-t border-zinc-200/70 dark:border-zinc-700/70">
+                          <div className="flex items-center gap-1.5 flex-1 pt-2.5">
+                            <DollarSign size={13} className="text-zinc-400 dark:text-zinc-500" />
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                              {formatearPrecio(serv.precio)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-1 pt-2.5">
+                            <Clock size={13} className="text-zinc-400 dark:text-zinc-500" />
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                              {serv.duracion_minutos} min
+                            </span>
+                          </div>
+                        </div>
+
+                        {eliminando && (
+                          <div className="absolute inset-0 rounded-2xl bg-white/60 dark:bg-zinc-900/60 flex items-center justify-center text-xs text-zinc-500 dark:text-zinc-400">
+                            Eliminando...
+                          </div>
+                        )}
                       </div>
-
-                      <div className="flex items-center gap-2 pt-1 border-t border-zinc-200/70 dark:border-zinc-700/70">
-                        <div className="flex items-center gap-1.5 flex-1 pt-2.5">
-                          <DollarSign size={13} className="text-zinc-400 dark:text-zinc-500" />
-                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                            {formatearPrecio(serv.precio)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-1 pt-2.5">
-                          <Clock size={13} className="text-zinc-400 dark:text-zinc-500" />
-                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                            {serv.duracion_minutos} min
-                          </span>
-                        </div>
-                      </div>
-
-                      {eliminando && (
-                        <div className="absolute inset-0 rounded-2xl bg-white/60 dark:bg-zinc-900/60 flex items-center justify-center text-xs text-zinc-500 dark:text-zinc-400">
-                          Eliminando...
-                        </div>
-                      )}
-                    </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -962,6 +978,17 @@ return (
             actualizar("direccion", direccion);
             setMostrarModalUbicacion(false);
           }}
+        />
+      )}
+
+
+      <Toast toast={toast} onClose={cerrarToast} />
+
+      {modalServicioAbierto && (
+        <ModalAgregarServicio
+          onClose={() => setModalServicioAbierto(false)}
+          onNotificar={(n) => mostrarToast(n.mensaje, n.tipo)}
+          onCreado={cargarServicios}
         />
       )}
     </>

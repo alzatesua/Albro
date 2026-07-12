@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import Portal from "@/components/ui/Portal";
 import { Check, Gavel, UserSearch, Search, ArrowLeft, ArrowRight, Loader2, CalendarDays, Clock } from "lucide-react";
@@ -113,6 +113,8 @@ const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar, profesionalPresel
   const totalPasos = pasos.length;
   const [enviandoCita, setEnviandoCita] = useState(false);
 
+  const [mostrarSelectorFecha, setMostrarSelectorFecha] = useState(false);
+  const fechaInputRef = useRef(null);
   const profesionalesFiltrados = profesionales.filter((p) =>
     `${p.nombre} ${p.apellido}`.toLowerCase().includes(busquedaProfesional.toLowerCase())
   );
@@ -321,6 +323,11 @@ useEffect(() => {
     onBuscar(payload);
   };
 
+  useEffect(() => {
+    if (pasoActual === 5 && modo === "profesional" && !fecha) {
+      setFecha(hoyISO());
+    }
+  }, [pasoActual, modo]);
   
 
   return (
@@ -587,24 +594,29 @@ useEffect(() => {
               )}
 
 
-              <div className="flex justify-center mb-4">
+              <div className="flex flex-col items-center gap-2 mb-4 relative">
+                <button
+                  onClick={() => {
+                    fechaInputRef.current?.showPicker?.();
+                  }}
+                  className="flex items-center gap-2 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+                >
+                  <CalendarDays size={16} />
+                  Elegir otra fecha
+                </button>
+
                 <input
+                  ref={fechaInputRef}
                   type="date"
                   value={fecha}
                   min={hoyISO()}
                   onChange={(e) => setFecha(e.target.value)}
-                  className="border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm font-medium bg-transparent text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 w-full max-w-[220px] text-center"
+                  className="absolute opacity-0 pointer-events-none w-0 h-0"
+                  tabIndex={-1}
                 />
               </div>
 
-              {!fecha && (
-                <div className="flex flex-col items-center gap-2 py-10">
-                  <CalendarDays size={28} className="text-zinc-300 dark:text-zinc-600" />
-                  <p className="text-sm text-zinc-400 dark:text-zinc-500 text-center">
-                    Selecciona una fecha para ver los horarios disponibles.
-                  </p>
-                </div>
-              )}
+             
 
               {fecha && cargandoAgenda && (
                 <div className="flex items-center justify-center gap-2 text-sm text-zinc-400 dark:text-zinc-500 py-6">

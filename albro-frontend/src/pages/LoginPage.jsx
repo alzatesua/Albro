@@ -265,6 +265,28 @@ const LoginPage = () => {
                 )}
               </button>
 
+              <Link
+                to="/registrarme"
+                className="w-full h-11 rounded-xl font-semibold text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                style={{
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.9)",
+                  border: "1px solid rgba(255,255,255,0.25)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+                }}
+              >
+                Regístrarme
+              </Link>
+
+             
+
               {/* Separador */}
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.12)" }} />
@@ -300,16 +322,7 @@ const LoginPage = () => {
               </button>
             </form>
 
-            {/* Link a registro */}
-            <p className="mt-8 text-center text-xs text-white/30">
-              ¿No tienes cuenta?{" "}
-              <Link
-                to="/registrarme"
-                className="text-white/70 font-medium hover:text-white transition-colors"
-              >
-                Regístrate aquí
-              </Link>
-            </p>
+           
           </div>
 
           {/* Panel derecho — imagen */}

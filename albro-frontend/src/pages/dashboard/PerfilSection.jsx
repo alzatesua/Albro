@@ -5,8 +5,10 @@ import Toast from "../../components/Toast";
 import {
   actualizarImagenPerfil, getPerfilProfesional, actualizarDatosPersonales,
   actualizarMisHorarios, getMisServicios, eliminarServicio,
-  getDepartamentos, getMunicipios, getGeocodingApiKey,
+  getDepartamentos, getMunicipios, getGeocodingApiKey, getEstadoProfesional,
 } from "@/services/api";
+
+
 import {
   Camera, Phone, Scissors, FileText, MapPin, Store,
   CalendarCheck, Clock, Plus, Trash2, DollarSign, User, X
@@ -19,7 +21,6 @@ const TABS = [
   { key: "personal", label: "Datos personales", icono: User },
   { key: "servicios", label: "Servicios", icono: Scissors },
   { key: "horarios", label: "Horarios", icono: Clock },
-  { key: "disponibilidad", label: "Disponibilidad", icono: CalendarCheck },
 ];
 
 const DIAS_SEMANA = [
@@ -206,6 +207,9 @@ const PerfilSection = () => {
   const diasActivosLista = DIAS_SEMANA.filter(({ key }) => horarios[key].activo);
   const diasInactivos = DIAS_SEMANA.filter(({ key }) => !horarios[key].activo);
   const hayHorarioInvalido = diasActivosLista.some(({ key }) => !horarioEsValido(horarios[key]));
+  const [estadoActual, setEstadoActual] = useState(null); // { profesional_id, estado: { id, codigo, nombre, ... } }
+  const [cargandoEstado, setCargandoEstado] = useState(true);
+
   const activarDiaHorario = (dia) => {
     setHorarios((h) => ({ ...h, [dia]: { ...h[dia], activo: true } }));
     setAgregandoHorario(false);
@@ -469,6 +473,22 @@ const PerfilSection = () => {
       .catch((err) => console.error("Error cargando municipios:", err));
   }, [departamentos, form.ubicacion]);
 
+  const cargarEstado = useCallback(async () => {
+    setCargandoEstado(true);
+    try {
+      const data = await getEstadoProfesional();
+      setEstadoActual(data);
+    } catch (err) {
+      console.error("Error cargando estado del profesional:", err);
+    } finally {
+      setCargandoEstado(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarEstado();
+  }, [cargarEstado]);
+
   const manejarCambioDepartamento = async (id) => {
     setDepartamentoId(id);
     setMunicipioId("");
@@ -575,20 +595,28 @@ return (
             )}
           </div>
 
-          <div
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full ${
-              disponible
-                ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500"
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                disponible ? "bg-emerald-500" : "bg-zinc-400 dark:bg-zinc-600"
+          {cargandoEstado ? (
+            <div className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500">
+              Cargando estado...
+            </div>
+          ) : (
+            <div
+              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full ${
+                estadoActual?.estado?.codigo === "disponible"
+                  ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500"
               }`}
-            />
-            {disponible ? "Disponible" : "No disponible"}
-          </div>
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  estadoActual?.estado?.codigo === "disponible"
+                    ? "bg-emerald-500"
+                    : "bg-zinc-400 dark:bg-zinc-600"
+                }`}
+              />
+              {estadoActual?.estado?.nombre || "Sin estado"}
+            </div>
+          )}
         </div>
 
         {/* ── Columna derecha: pestañas + contenido ── */}
@@ -746,9 +774,9 @@ return (
                 <button
                   type="button"
                   onClick={() => setModalServicioAbierto(true)}
-                  className="animate__animated animate__rubberBand flex items-center gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="animate__animated animate__rubberBand flex items-center gap-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  + Agregar servicio
+                  <Plus size={12} /> AGREGAR SERVICIO
                 </button>
               </div>
               <div className="space-y-4">
@@ -838,13 +866,13 @@ return (
                 </p>
                 <div className="relative">
                  <button
-                    type="button"
-                    onClick={() => setAgregandoHorario((v) => !v)}
-                    disabled={diasInactivos.length === 0}
-                    className="animate__animated animate__rubberBand flex items-center gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Agregar horario
-                  </button>
+                  type="button"
+                  onClick={() => setAgregandoHorario((v) => !v)}
+                  disabled={diasInactivos.length === 0}
+                  className="animate__animated animate__rubberBand flex items-center gap-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Plus size={12} /> AGREGAR DÍA
+                </button>
 
                   {agregandoHorario && diasInactivos.length > 0 && (
                     <div className="absolute right-0 top-full mt-2 z-10 w-40 p-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-lg">
@@ -921,38 +949,7 @@ return (
             </div>
           )}
 
-          {/* Disponibilidad */}
-          {tabActiva === "disponibilidad" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700">
-                <div className="flex items-center gap-2.5">
-                  <CalendarCheck size={16} className="text-zinc-500 dark:text-zinc-400" />
-                  <div>
-                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                      Disponible para nuevas citas
-                    </p>
-                    <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                      Los clientes podrán agendar contigo mientras esté activo
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDisponible((v) => !v)}
-                  className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${
-                    disponible ? "bg-zinc-900 dark:bg-white" : "bg-zinc-300 dark:bg-zinc-600"
-                  }`}
-                  aria-pressed={disponible}
-                >
-                  <span
-                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-white dark:bg-zinc-900 shadow-sm transition-transform ${
-                      disponible ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-          )}
+   
 
           {/* Guardar */}
           <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-zinc-100 dark:border-zinc-800">

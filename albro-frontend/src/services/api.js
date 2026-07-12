@@ -65,6 +65,18 @@ export const getPerfilProfesional = () =>
 export const getDepartamentos = () =>
   request("/profesionales/departamentos/");
 
+export const getEstadosProfesional = () =>
+  request("/profesionales/estados/");
+
+export const getEstadoProfesional = () =>
+  request("/profesionales/estado/");
+
+export const actualizarEstadoProfesional = (estadoId) =>
+  request("/profesionales/estado/", {
+    method: "PATCH",
+    body: JSON.stringify({ estado_id: estadoId }),
+  });
+
 export const getMunicipios = (departamentoId) =>
   request(`/profesionales/departamentos/${departamentoId}/municipios/`);
 
@@ -254,6 +266,8 @@ export const buscarProfesionales = ({ q, servicio, categoria } = {}) => {
 
 export const getServiciosDeProfesional = (profesionalId) =>
   request(`/profesionales/${profesionalId}/servicios/`);
+
+
 
 // ─── Websockets ──────────────────────────────────────────────────────────
 

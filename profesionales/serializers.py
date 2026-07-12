@@ -264,7 +264,8 @@ class ProfesionalUbicacionSerializer(serializers.ModelSerializer):
     """
     nombre = serializers.CharField(source='usuario.nombre', read_only=True)
     apellido = serializers.CharField(source='usuario.apellido', read_only=True)
-
+    estado = EstadoAtencionSerializer(read_only=True)
+    
     class Meta:
         model = PerfilProfesional
         fields = [
@@ -275,4 +276,6 @@ class ProfesionalUbicacionSerializer(serializers.ModelSerializer):
             'latitud',
             'longitud',
             'imagen_perfil',
+            'estado',
+
         ]

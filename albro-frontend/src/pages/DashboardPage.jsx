@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, User, Scissors, Map, Briefcase, UserCheck,
   Settings, CalendarClock, Users, Sun, Moon,
-  CheckCircle2, XCircle, Bell
+  CheckCircle2, XCircle, Bell,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 
@@ -191,6 +191,8 @@ const DashboardPage = () => {
   const [mostrarNotificaciones, setMostrarNotificaciones] = useState(false);
   const [cargandoNotificaciones, setCargandoNotificaciones] = useState(false);
   const notifRef = useRef(null);
+  const [mostrarMenuPerfil, setMostrarMenuPerfil] = useState(false);
+  const menuPerfilRef = useRef(null);
   
 
   const hayNuevas = notificaciones.length > 0;
@@ -208,6 +210,16 @@ const DashboardPage = () => {
 
     return () => clearInterval(intervalo);
   }, [hayNuevas]);
+  
+  useEffect(() => {
+    const manejarClickAfuera = (e) => {
+      if (menuPerfilRef.current && !menuPerfilRef.current.contains(e.target)) {
+        setMostrarMenuPerfil(false);
+      }
+    };
+    document.addEventListener("mousedown", manejarClickAfuera);
+    return () => document.removeEventListener("mousedown", manejarClickAfuera);
+  }, []);
 
   const cargarNotificaciones = async () => {
     setCargandoNotificaciones(true);
@@ -321,6 +333,21 @@ const DashboardPage = () => {
   }, []);
 
   useNotificacionesWS({ usuario, onNuevaNotificacion: manejarNuevaNotificacion });
+
+
+
+  
+  const irAConfigurarPerfil = () => {
+    setMostrarMenuPerfil(false);
+    localStorage.setItem("perfil_tab_activa", "personal"); // fuerza la pestaña "Datos personales"
+    setSeccionActiva("perfil");
+  };
+
+  const irACambiarAProfesional = () => {
+    setMostrarMenuPerfil(false);
+    navigate("/convertirme-en-profesional"); // ajusta la ruta según tu flujo
+  };
+
 
   return (
      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col transition-colors duration-300">
@@ -446,7 +473,7 @@ const DashboardPage = () => {
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-zinc-900 dark:bg-white rounded-lg flex items-center justify-center">
-            <Scissors size={16} className="text-white dark:text-zinc-900" />
+            <Scissors size={18} className="text-white dark:text-zinc-900" />
           </div>
           <span className="text-zinc-900 dark:text-white text-lg font-bold">Albro</span>
         </div>
@@ -454,23 +481,23 @@ const DashboardPage = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={toggleDark}
-            className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+            className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
           >
-            {dark ? <Sun size={16} /> : <Moon size={16} />}
+            {dark ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
           {/* ── Campana de notificaciones ── */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={abrirNotificaciones}
-              className="relative w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              className="relative w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             >
               <div
                 className={`relative flex items-center justify-center ${
                   animarCampana ? "animate-shake-suave" : ""
                 }`}
               >
-                <Bell size={16} />
+                <Bell size={20} />
                 {hayNuevas && (
                   <span className="absolute top-0 -right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-900" />
                 )}
@@ -557,16 +584,44 @@ const DashboardPage = () => {
           </div>
           {/* ─────────────────────────────────────── */}
 
-          <div className="flex items-center gap-2 text-sm">
-            <div className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-              <User size={14} className="text-zinc-500 dark:text-zinc-400" />
-            </div>
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">
-              {usuario?.nombre} {usuario?.apellido}
-            </span>
-            <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full capitalize">
-              {usuario?.rol}
-            </span>
+          <div className="relative" ref={menuPerfilRef}>
+            <button
+              type="button"
+              onClick={() => setMostrarMenuPerfil((v) => !v)}
+              className="flex items-center gap-2 text-sm rounded-xl px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                <User size={18} className="text-zinc-500 dark:text-zinc-400" />
+              </div>
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                {usuario?.nombre} {usuario?.apellido}
+              </span>
+              <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full capitalize">
+                {usuario?.rol}
+              </span>
+            </button>
+
+            {mostrarMenuPerfil && (
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
+                <button
+                  onClick={irAConfigurarPerfil}
+                  className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                >
+                  <Settings size={15} className="text-zinc-400 dark:text-zinc-500" />
+                  Configurar perfil
+                </button>
+
+                {usuario?.rol === "cliente" && (
+                  <button
+                    onClick={irACambiarAProfesional}
+                    className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800"
+                  >
+                    <Briefcase size={15} className="text-zinc-400 dark:text-zinc-500" />
+                    Cambiar a profesional
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <Button
@@ -574,7 +629,7 @@ const DashboardPage = () => {
             onClick={() => { limpiarSesion(); navigate("/login"); }}
             className="text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 border-zinc-200 dark:border-zinc-700 dark:bg-transparent"
           >
-            <LogOut size={14} className="mr-1.5" />
+            <LogOut size={18} className="mr-1.5" />
             Salir
           </Button>
         </div>

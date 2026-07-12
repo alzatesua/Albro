@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef   } from "react";
 import { Calendar, Clock, User, ChevronLeft, ChevronRight, CheckCheck, Play,XCircle, CalendarClock} from "lucide-react";
-import { getCitas, confirmarCita, cancelarCita, completarCita, reagendarCita} from "../../services/api"; // ajusta la ruta según tu estructura
+import { getCitas, confirmarCita, cancelarCita, completarCita, reagendarCita, getEstadosProfesional, actualizarEstadoProfesional, getEstadoProfesional} from "../../services/api"; // ajusta la ruta según tu estructura
 import { useCitasSocket } from "../../hooks/useCitasSocket";
 import CitaAlertaModal from "../../components/CitaAlertaModal"; // ajusta la ruta
 import { useHoraServidor } from "../../hooks/useHoraServidor";
@@ -271,7 +271,10 @@ const AgendaSection = () => {
   const [toast, setToast] = useState(null); 
   const [citaAConfirmarCancelacion, setCitaAConfirmarCancelacion] = useState(null);
 
-  
+  const [estadosDisponibles, setEstadosDisponibles] = useState([]);
+  const [cargandoEstados, setCargandoEstados] = useState(true);
+  const [estadoActivoId, setEstadoActivoId] = useState(null);
+  const [actualizandoEstadoId, setActualizandoEstadoId] = useState(null);
 
   const handleConfirmar = async (citaId) => {
     try {
@@ -388,11 +391,72 @@ const AgendaSection = () => {
     cargarCitas();
   }, [tab, pagina]);
 
+  useEffect(() => {
+    const cargarEstados = async () => {
+      try {
+        setCargandoEstados(true);
+        const data = await getEstadosProfesional();
+        setEstadosDisponibles(Array.isArray(data) ? data : data.results || []);
+      } catch (err) {
+        console.error("No se pudieron cargar los estados:", err);
+      } finally {
+        setCargandoEstados(false);
+      }
+    };
+
+    cargarEstados();
+  }, []);
+
+  useEffect(() => {
+    const cargarEstados = async () => {
+      try {
+        setCargandoEstados(true);
+        const data = await getEstadosProfesional();
+        setEstadosDisponibles(Array.isArray(data) ? data : data.results || []);
+      } catch (err) {
+        console.error("No se pudieron cargar los estados:", err);
+      } finally {
+        setCargandoEstados(false);
+      }
+    };
+
+    cargarEstados();
+  }, []);
+
+  useEffect(() => {
+    const cargarEstadoActual = async () => {
+      try {
+        const data = await getEstadoProfesional();
+        setEstadoActivoId(data?.estado?.id ?? null);
+      } catch (err) {
+        console.error("No se pudo cargar el estado actual del profesional:", err);
+      }
+    };
+
+    cargarEstadoActual();
+  }, []);
+
   // Al cambiar de pestaña, siempre volvemos a la página 1
   useEffect(() => {
     setPagina(1);
   }, [tab]);
 
+  const handleCambiarEstado = async (estadoId) => {
+    if (actualizandoEstadoId) return; // evita doble click mientras hay una petición en curso
+
+    const estadoAnterior = estadoActivoId;
+    try {
+      setActualizandoEstadoId(estadoId);
+      setEstadoActivoId(estadoId); // optimista
+      await actualizarEstadoProfesional(estadoId);
+      setToast({ tipo: "success", mensaje: "Estado actualizado correctamente." });
+    } catch (err) {
+      setEstadoActivoId(estadoAnterior); // revertir si falla
+      setToast({ tipo: "error", mensaje: err.message || "No se pudo actualizar el estado." });
+    } finally {
+      setActualizandoEstadoId(null);
+    }
+  };
   const totalPaginas = Math.ceil(totalCitas / CITAS_POR_PAGINA) || 1;
 
   useEffect(() => {
@@ -674,7 +738,7 @@ const AgendaSection = () => {
           )}
         </div>
 
-        {/* Columna derecha: reloj de tarjetas (flip clock) en vivo */} 
+        {/* Columna derecha: reloj de tarjetas (flip clock) en vivo */}
         <div
           className={`p-4 transition-colors sticky top-4 self-start flex flex-col gap-2 ${
             arrastrandoSobreReloj ? "bg-emerald-500/5" : ""
@@ -697,6 +761,39 @@ const AgendaSection = () => {
             }
           }}
         >
+          {/* Lista de estados disponibles */}
+          <div className="mb-2">
+            {cargandoEstados ? (
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">Cargando estados...</p>
+            ) : estadosDisponibles.length === 0 ? (
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">Sin estados disponibles.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {estadosDisponibles.map((estado) => {
+                  const id = estado.id ?? estado.value ?? estado;
+                  const nombre = estado.nombre ?? estado.label ?? estado;
+                  const activo = estadoActivoId === id;
+                  const actualizando = actualizandoEstadoId === id;
+
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => handleCambiarEstado(id)}
+                      disabled={actualizandoEstadoId !== null}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                        activo
+                          ? "bg-emerald-500 text-white"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      }`}
+                    >
+                      {actualizando ? "..." : nombre}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {duracionCronometro !== null ? (
             <>
               <Cronometro

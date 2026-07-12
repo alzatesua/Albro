@@ -25,13 +25,23 @@ const getMediaBaseUrl = () => {
   return apiUrl.replace(/\/api\/?$/, "");
 };
 
-// Genera un pin con la foto de perfil (o iniciales) recortada en círculo dentro de la cabeza
-// Genera un pin con la foto de perfil (o iniciales) recortada en círculo dentro de la cabeza
-const crearAvatarPinIcon = ({ imagenUrl, iniciales, id, seleccionado = false }) => {
+
+const COLOR_ESTADO = {
+  disponible: "#43c522",     // verde
+  no_disponible: "#a1a1aa",  // gris
+  en_almuerzo: "#f97316",    // naranja
+  en_break: "#eab308",       // amarillo
+};
+const colorPorEstado = (codigo) => COLOR_ESTADO[codigo] || "#a1a1aa";
+
+// Genera un pin con la foto de perfil (o iniciales) recortada en círculo dentro de la cabeza,
+// más un puntico de color arriba a la derecha indicando el estado de atención
+const crearAvatarPinIcon = ({ imagenUrl, iniciales, id, seleccionado = false, estadoCodigo }) => {
   const clipId = `clip-prof-${id}`;
   const tamano = seleccionado ? 64 : 52;
   const alto = seleccionado ? 84 : 68;
   const colorFondo = seleccionado ? "#ffffff" : "#18181b";
+  const colorEstado = colorPorEstado(estadoCodigo);
 
   return {
     className: "",
@@ -50,6 +60,7 @@ const crearAvatarPinIcon = ({ imagenUrl, iniciales, id, seleccionado = false }) 
               : `<circle cx="26" cy="26" r="22" fill="${colorFondo}"/>
                  <text x="26" y="31" text-anchor="middle" font-family="sans-serif" font-weight="600" font-size="15" fill="${seleccionado ? "#18181b" : "#ffffff"}">${iniciales}</text>`
           }
+          <circle cx="42" cy="10" r="7" fill="${colorEstado}" stroke="#ffffff" stroke-width="2.5"/>
         </svg>
       </div>
     `,
@@ -77,7 +88,9 @@ const MapaSection = () => {
   const marcadoresProfesionalesRef = useRef({}); // antes era []
   const [profesionalSeleccionadoId, setProfesionalSeleccionadoId] = useState(null);
   const [profesionalParaAgendar, setProfesionalParaAgendar] = useState(null);
-  
+  const ZOOM_DEFAULT = 15;
+  const ZOOM_PAIS = 6; // zoom inicial mientras no sabemos la ubicación del cliente
+  const CENTRO_DEFECTO = { lat: 4.5709, lng: -74.2973 }; // Colombia, centro aproximado
 
   const mostrarToast = (mensaje, tipo = "success") => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -99,84 +112,84 @@ const MapaSection = () => {
     fixLeafletIcons();
 
     const iniciarMapa = async () => {
-      if (!navigator.geolocation) {
-        setEstado({ cargando: false, error: "Tu navegador no soporta geolocalización.", listo: false });
-        return;
-      }
+      if (!mapRef.current) return;
 
-      navigator.geolocation.getCurrentPosition(
-        async ({ coords: { latitude: lat, longitude: lng } }) => {
-          if (!mapRef.current) return;
+      const L = (await import("leaflet")).default;
+      await import("leaflet/dist/leaflet.css");
 
-          const L = (await import("leaflet")).default;
-          await import("leaflet/dist/leaflet.css");
+      // El mapa se crea YA, con un centro por defecto — no espera al navegador
+      const map = L.map(mapRef.current, {
+        center: [CENTRO_DEFECTO.lat, CENTRO_DEFECTO.lng],
+        zoom: ZOOM_PAIS,
+        zoomControl: true,
+      });
 
-          const map = L.map(mapRef.current, {
-            center: [lat, lng],
-            zoom: ZOOM_DEFAULT,
-            zoomControl: true,
-          });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map);
 
-          // Tiles de OpenStreetMap
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-            maxZoom: 19,
-          }).addTo(map);
-
-          // Marcador personalizado tipo avatar (tu ubicación)
-          const tuUbicacionIcon = L.divIcon({
-            className: "",
-            html: `
-              <div style="
-                width: 18px; height: 18px;
-                border-radius: 50%;
-                background: #18181b;
-                border: 3px solid #fff;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-              "></div>
-            `,
-            iconSize: [18, 18],
-            iconAnchor: [9, 9],
-          });
-
-          L.marker([lat, lng], { icon: tuUbicacionIcon })
-            .addTo(map)
-            .bindPopup(`
-              <div style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b">
-                <strong>📍 Estás aquí</strong><br/>
-                <span style="color:#71717a">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
-              </div>
-            `);
-
-          mapInstanceRef.current = map;
-
-          // Escucha clicks en los botones "Agendar" de los popups (delegación de eventos)
-          map.on('popupopen', (e) => {
-            const boton = e.popup.getElement()?.querySelector('.btn-agendar-popup');
-            if (boton) {
-              boton.addEventListener('click', () => {
-                const profesionalId = boton.dataset.profesionalId;
-                const entry = marcadoresProfesionalesRef.current[profesionalId];
-                if (entry) {
-                  setProfesionalParaAgendar(entry.prof);
-                }
-                setModalAbierto(true);
-              });
+      // Escucha clicks en los botones "Agendar" de los popups (delegación de eventos)
+      map.on('popupopen', (e) => {
+        const boton = e.popup.getElement()?.querySelector('.btn-agendar-popup');
+        if (boton) {
+          boton.addEventListener('click', () => {
+            const profesionalId = boton.dataset.profesionalId;
+            const entry = marcadoresProfesionalesRef.current[profesionalId];
+            if (entry) {
+              setProfesionalParaAgendar(entry.prof);
             }
+            setModalAbierto(true);
           });
-  
-          setEstado({ cargando: false, error: null, listo: true });
-        },
-        (err) => {
-          const mensajes = {
-            1: "Permiso de ubicación denegado. Habilítalo en la configuración del navegador.",
-            2: "No se pudo obtener tu ubicación actual.",
-            3: "La solicitud tardó demasiado. Inténtalo de nuevo.",
-          };
-          setEstado({ cargando: false, error: mensajes[err.code] || "Error de geolocalización.", listo: false });
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
+        }
+      });
+
+      mapInstanceRef.current = map;
+
+      // El mapa ya está listo para mostrarse, sin importar lo que pase con la geolocalización
+      setEstado({ cargando: false, error: null, listo: true });
+
+      // Pide la ubicación del cliente EN PARALELO, sin bloquear el mapa.
+      // Si acepta: lo centramos ahí y le ponemos su pin.
+      // Si rechaza, falla, o el navegador no soporta geolocalización: no pasa nada, el mapa se queda como está.
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          ({ coords: { latitude: lat, longitude: lng } }) => {
+            if (!mapInstanceRef.current) return;
+
+            const tuUbicacionIcon = L.divIcon({
+              className: "",
+              html: `
+                <div style="
+                  width: 18px; height: 18px;
+                  border-radius: 50%;
+                  background: #18181b;
+                  border: 3px solid #fff;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+                "></div>
+              `,
+              iconSize: [18, 18],
+              iconAnchor: [9, 9],
+            });
+
+            L.marker([lat, lng], { icon: tuUbicacionIcon })
+              .addTo(mapInstanceRef.current)
+              .bindPopup(`
+                <div style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b">
+                  <strong>📍 Estás aquí</strong><br/>
+                  <span style="color:#71717a">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
+                </div>
+              `);
+
+            mapInstanceRef.current.flyTo([lat, lng], ZOOM_DEFAULT, { animate: true });
+          },
+          (err) => {
+            // Silencioso: el mapa ya está visible, solo no lo centramos en el cliente.
+            console.warn("No se pudo obtener la ubicación del cliente:", err.message);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      }
     };
 
     iniciarMapa();
@@ -189,6 +202,18 @@ const MapaSection = () => {
       }
     };
   }, []);
+
+  const reintentarUbicacion = () => {
+    if (!navigator.geolocation || !mapInstanceRef.current) return;
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords: { latitude: lat, longitude: lng } }) => {
+        mapInstanceRef.current.flyTo([lat, lng], ZOOM_DEFAULT, { animate: true });
+      },
+      (err) => console.warn("No se pudo obtener la ubicación:", err.message),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   useEffect(() => {
     if (!estado.listo) return;
@@ -267,7 +292,7 @@ const MapaSection = () => {
     setModalAbierto(false);
   };
 
-  const pintarMarcadores = async (profesionales) => {
+ const pintarMarcadores = async (profesionales) => {
     if (!mapInstanceRef.current) return;
 
     const L = (await import("leaflet")).default;
@@ -286,15 +311,19 @@ const MapaSection = () => {
       const iniciales = `${prof.nombre?.[0] || ""}${prof.apellido?.[0] || ""}`.toUpperCase();
       const imagenUrl = prof.imagen_perfil ? `${mediaBaseUrl}${prof.imagen_perfil}` : null;
       const esSeleccionado = id === profesionalSeleccionadoId;
+      const estadoCodigo = prof.estado?.codigo;
 
       const avatarPinIcon = L.divIcon(
-        crearAvatarPinIcon({ imagenUrl, iniciales, id, seleccionado: esSeleccionado })
+        crearAvatarPinIcon({ imagenUrl, iniciales, id, seleccionado: esSeleccionado, estadoCodigo })
       );
       const marker = L.marker([lat, lng], { icon: avatarPinIcon })
         .addTo(mapInstanceRef.current)
         .bindPopup(`
           <div style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b">
-            <strong>${prof.nombre} ${prof.apellido}</strong>
+            <strong>${prof.nombre} ${prof.apellido}</strong><br/>
+            <span style="color:${colorPorEstado(estadoCodigo)};font-weight:600;font-size:11px">
+              ${prof.estado?.nombre || "Sin estado"}
+            </span>
             <button
               class="btn-agendar-popup"
               data-profesional-id="${prof.id}"
@@ -318,7 +347,7 @@ const MapaSection = () => {
         `);
 
       // Guarda el marker JUNTO con los datos crudos para poder regenerar el ícono luego
-      marcadoresProfesionalesRef.current[id] = { marker, prof, iniciales, imagenUrl };
+      marcadoresProfesionalesRef.current[id] = { marker, prof, iniciales, imagenUrl, estadoCodigo };
     });
   };
   const irAProfesional = async (prof) => {
@@ -339,6 +368,7 @@ const MapaSection = () => {
               iniciales: anterior.iniciales,
               id: profesionalSeleccionadoId,
               seleccionado: false,
+              estadoCodigo: anterior.estadoCodigo,
             })
           )
         );
@@ -355,6 +385,7 @@ const MapaSection = () => {
             iniciales: actual.iniciales,
             id: prof.id,
             seleccionado: true,
+            estadoCodigo: actual.estadoCodigo,
           })
         )
       );

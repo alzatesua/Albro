@@ -28,6 +28,7 @@ urlpatterns = [
     # Si en el futuro añades más apps, simplemente agrega otra línea aquí,
     # por ejemplo: path('api/subastas/', include('subastas.urls')),
     path('api/', include('notificaciones.urls')),
+    path('api/configuraciones/', include('configuraciones.urls')),
 ]
 
 # Servir archivos de media en modo desarrollo

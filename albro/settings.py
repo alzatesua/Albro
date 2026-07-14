@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     # Apps de google auth
     'google_auth',
     'notificaciones', 
+    'configuraciones',
 ]
 
 CACHES = {

@@ -268,6 +268,71 @@ export const getServiciosDeProfesional = (profesionalId) =>
   request(`/profesionales/${profesionalId}/servicios/`);
 
 
+// ─── Mis clientes ────────────────────────────────────────────────────────
+export const getMisClientesUnicos = ({ estado, page, page_size } = {}) => {
+  const params = new URLSearchParams();
+  if (estado) params.set("estado", estado);
+  if (page) params.set("page", page);
+  if (page_size) params.set("page_size", page_size);
+
+  const query = params.toString();
+  return request(`/profesionales/mis-clientes/unicos/${query ? `?${query}` : ""}`);
+};
+// ─── Historial de citas (todas, no agrupadas por cliente) ─────────────────
+export const getMisClientes = ({ estado, page, page_size } = {}) => {
+  const params = new URLSearchParams();
+  if (estado) params.set("estado", estado);
+  if (page) params.set("page", page);
+  if (page_size) params.set("page_size", page_size);
+
+  const query = params.toString();
+  return request(`/profesionales/mis-clientes/${query ? `?${query}` : ""}`);
+};
+
+// Trae TODAS las páginas — necesario para que la gráfica tenga el histórico completo
+export const getTodasLasCitas = async ({ estado } = {}) => {
+  let pagina = 1;
+  let todas = [];
+  let hayMas = true;
+
+  while (hayMas) {
+    const data = await getMisClientes({ estado, page: pagina, page_size: 50 });
+    todas = todas.concat(data.results || []);
+    hayMas = Boolean(data.next);
+    pagina += 1;
+  }
+
+  return todas;
+};
+
+// ─── Calificaciones ─────────────────────────────────────────────────────
+export const calificarCita = ({ cita_id, estrellas, comentario }) =>
+  request("/profesionales/calificar/", {
+    method: "POST",
+    body: JSON.stringify({ cita_id, estrellas, comentario: comentario || "" }),
+  });
+
+// ─── Portafolio ─────────────────────────────────────────────────────────
+export const subirImagenesPortafolio = (archivos, { citaId, descripcion } = {}) => {
+  const formData = new FormData();
+  archivos.forEach((archivo) => formData.append("imagenes", archivo));
+  if (citaId) formData.append("cita_id", citaId);
+  if (descripcion) formData.append("descripcion", descripcion);
+
+  return requestFormData("/profesionales/portafolio/", formData, {
+    method: "POST",
+  });
+};
+
+// ─── Configuraciones (switches) ────────────────────────────────────────
+export const getConfiguracionSwitches = () =>
+  request("/configuraciones/switches/");
+
+export const actualizarConfiguracionSwitches = (switches) =>
+  request("/configuraciones/switches/", {
+    method: "PATCH",
+    body: JSON.stringify({ switches }),
+  });
 
 // ─── Websockets ──────────────────────────────────────────────────────────
 

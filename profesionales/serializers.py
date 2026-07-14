@@ -1,7 +1,8 @@
 from rest_framework import serializers
 import httpx
 
-from .models import EstadoAtencion, PerfilProfesional, Departamento, Municipio
+from .models import EstadoAtencion, PerfilProfesional, Departamento, Municipio, CalificacionProfesional, CalificacionProfesional, ImagenPortafolio
+from citas.models import Cita
 
 DIAS_VALIDOS = [
     'lunes', 'martes', 'miercoles', 'jueves',
@@ -278,4 +279,158 @@ class ProfesionalUbicacionSerializer(serializers.ModelSerializer):
             'imagen_perfil',
             'estado',
 
+        ]
+
+
+class CrearCalificacionSerializer(serializers.ModelSerializer):
+    """
+    El cliente califica una cita ya finalizada.
+    POST { "cita_id": 5, "estrellas": 4, "comentario": "Excelente atención" }
+    """
+    cita_id = serializers.PrimaryKeyRelatedField(
+        queryset=Cita.objects.all(),
+        source='cita',
+        write_only=True,
+    )
+    profesional_id = serializers.IntegerField(source='profesional.id', read_only=True)
+
+    class Meta:
+        model = CalificacionProfesional
+        fields = [
+            'id', 'cita_id', 'profesional_id',
+            'estrellas', 'comentario', 'fecha_creacion',
+        ]
+        read_only_fields = ['id', 'fecha_creacion']
+
+    def validate(self, attrs):
+        cita = attrs['cita']
+        request = self.context['request']
+
+        if cita.cliente_id != request.user.id:
+            raise serializers.ValidationError(
+                'Esta cita no pertenece al usuario autenticado.'
+            )
+
+        if cita.estado != 'completada':
+            raise serializers.ValidationError(
+                'Solo puedes calificar citas que ya fueron completadas.'
+            )
+
+        if CalificacionProfesional.objects.filter(cita=cita).exists():
+            raise serializers.ValidationError(
+                'Esta cita ya fue calificada.'
+            )
+
+        return attrs
+
+    def create(self, validated_data):
+        cita = validated_data['cita']
+        validated_data['profesional'] = cita.profesional
+        validated_data['cliente'] = self.context['request'].user
+        return CalificacionProfesional.objects.create(**validated_data)
+
+
+class ClienteDeProfesionalSerializer(serializers.ModelSerializer):
+    """
+    Una fila por cada cita del profesional: datos del cliente, del servicio,
+    horario y la calificación (si ya existe).
+    """
+    cliente_id = serializers.IntegerField(source='cliente.id', read_only=True)
+    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
+    cliente_apellido = serializers.CharField(source='cliente.apellido', read_only=True)
+    cliente_email = serializers.EmailField(source='cliente.email', read_only=True)
+    cliente_telefono = serializers.CharField(source='cliente.telefono', read_only=True)
+
+    servicio_id = serializers.IntegerField(source='servicio.id', read_only=True)
+    servicio_nombre = serializers.CharField(source='servicio.nombre', read_only=True)
+
+    categoria_id = serializers.IntegerField(source='categoria.id', read_only=True, default=None)
+    categoria_nombre = serializers.CharField(source='categoria.nombre', read_only=True, default=None)
+
+    estrellas = serializers.SerializerMethodField()
+    comentario = serializers.SerializerMethodField()
+    calificado = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cita
+        fields = [
+            'id',
+            'cliente_id', 'cliente_nombre', 'cliente_apellido',
+            'cliente_email', 'cliente_telefono',
+            'servicio_id', 'servicio_nombre',
+            'categoria_id', 'categoria_nombre',
+            'fecha', 'hora_inicio', 'hora_fin',
+            'estado',
+            'estrellas', 'comentario', 'calificado',
+        ]
+
+    def get_estrellas(self, obj):
+        calificacion = getattr(obj, 'calificacion', None)
+        return calificacion.estrellas if calificacion else None
+
+    def get_comentario(self, obj):
+        calificacion = getattr(obj, 'calificacion', None)
+        return calificacion.comentario if calificacion else None
+
+    def get_calificado(self, obj):
+        return hasattr(obj, 'calificacion')
+
+
+class SubirImagenPortafolioSerializer(serializers.ModelSerializer):
+    """
+    El profesional sube una foto asociándola a una cita ya realizada.
+    Al asociar la cita, el cliente queda registrado automáticamente.
+    """
+    cita_id = serializers.PrimaryKeyRelatedField(
+        queryset=Cita.objects.all(),
+        source='cita',
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = ImagenPortafolio
+        fields = ['id', 'cita_id', 'imagen', 'descripcion', 'fecha_creacion']
+        read_only_fields = ['id', 'fecha_creacion']
+
+    def validate_cita_id(self, cita):
+        return cita
+
+    def validate(self, attrs):
+        request = self.context['request']
+        perfil = request.user.perfil_profesional
+        cita = attrs.get('cita')
+
+        if cita and cita.profesional_id != perfil.id:
+            raise serializers.ValidationError(
+                'Esta cita no pertenece a tu perfil profesional.'
+            )
+
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context['request']
+        perfil = request.user.perfil_profesional
+        cita = validated_data.get('cita')
+
+        validated_data['profesional'] = perfil
+        validated_data['cliente'] = cita.cliente if cita else None
+
+        return ImagenPortafolio.objects.create(**validated_data)
+
+
+class ImagenPortafolioSerializer(serializers.ModelSerializer):
+    """Para listar el portafolio ya con datos legibles del cliente/servicio."""
+    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True, default=None)
+    cliente_apellido = serializers.CharField(source='cliente.apellido', read_only=True, default=None)
+    servicio_nombre = serializers.CharField(source='cita.servicio.nombre', read_only=True, default=None)
+    fecha_servicio = serializers.DateField(source='cita.fecha', read_only=True, default=None)
+
+    class Meta:
+        model = ImagenPortafolio
+        fields = [
+            'id', 'imagen', 'descripcion', 'fecha_creacion',
+            'cliente_nombre', 'cliente_apellido',
+            'servicio_nombre', 'fecha_servicio',
         ]

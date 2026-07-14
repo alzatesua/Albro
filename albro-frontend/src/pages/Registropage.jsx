@@ -3,8 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { User, Mail, Lock, Phone, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { registrarUsuario } from "@/services/api";
-import fondoLogin from "@/assets/fondo-login.jpeg";
-import imagenDerecha from "@/assets/imege-derecha-login.jpg";
+import fondoLogin from "@/assets/fondo-login.jpg";
+import imagenDerecha from "@/assets/imege-derecha-login.png";
 
 export default function RegistroPage() {
   const navigate = useNavigate();
@@ -250,7 +250,7 @@ export default function RegistroPage() {
               backgroundSize: "cover",
               backgroundPosition: "center",
               borderLeft: "1px solid rgba(255,255,255,0.1)",
-              filter: "grayscale(100%)",
+             
             }}
           >
             <div className="absolute inset-0 bg-black/40" />

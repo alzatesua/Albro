@@ -26,7 +26,8 @@ def generar_cupos_disponibles(perfil, servicio, fecha):
         Cita.objects.filter(
             profesional=perfil,
             fecha=fecha,
-            estado__in=['pendiente', 'confirmada'],
+        ).exclude(
+            estado='cancelada',
         ).values_list('hora_inicio', 'hora_fin')
     )
 

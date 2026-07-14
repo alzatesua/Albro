@@ -28,8 +28,8 @@ const getMediaBaseUrl = () => {
 
 const COLOR_ESTADO = {
   disponible: "#43c522",     // verde
-  no_disponible: "#a1a1aa",  // gris
-  en_almuerzo: "#f97316",    // naranja
+  no_disponible: "#f81414",  // gris
+  en_almuerzo: "#ff6f08",    // naranja
   en_break: "#eab308",       // amarillo
 };
 const colorPorEstado = (codigo) => COLOR_ESTADO[codigo] || "#a1a1aa";
@@ -91,6 +91,7 @@ const MapaSection = () => {
   const ZOOM_DEFAULT = 15;
   const ZOOM_PAIS = 6; // zoom inicial mientras no sabemos la ubicación del cliente
   const CENTRO_DEFECTO = { lat: 4.5709, lng: -74.2973 }; // Colombia, centro aproximado
+  const hoverTimeoutRef = useRef(null);
 
   const mostrarToast = (mensaje, tipo = "success") => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -292,7 +293,7 @@ const MapaSection = () => {
     setModalAbierto(false);
   };
 
- const pintarMarcadores = async (profesionales) => {
+  const pintarMarcadores = async (profesionales) => {
     if (!mapInstanceRef.current) return;
 
     const L = (await import("leaflet")).default;
@@ -316,10 +317,15 @@ const MapaSection = () => {
       const avatarPinIcon = L.divIcon(
         crearAvatarPinIcon({ imagenUrl, iniciales, id, seleccionado: esSeleccionado, estadoCodigo })
       );
+
       const marker = L.marker([lat, lng], { icon: avatarPinIcon })
         .addTo(mapInstanceRef.current)
-        .bindPopup(`
-          <div style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b">
+        .bindPopup(
+          `
+          <div
+            class="popup-profesional"
+            style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b"
+          >
             <strong>${prof.nombre} ${prof.apellido}</strong><br/>
             <span style="color:${colorPorEstado(estadoCodigo)};font-weight:600;font-size:11px">
               ${prof.estado?.nombre || "Sin estado"}
@@ -344,7 +350,56 @@ const MapaSection = () => {
               Agendar cita
             </button>
           </div>
-        `);
+          `,
+          { closeButton: false, autoPan: false }
+        );
+
+      // ── Abrir con hover, cerrar con un pequeño delay ──────────────────────
+      marker.on("mouseover", () => {
+        if (hoverTimeoutRef.current) {
+          clearTimeout(hoverTimeoutRef.current);
+          hoverTimeoutRef.current = null;
+        }
+        marker.openPopup();
+      });
+
+      marker.on("mouseout", () => {
+        hoverTimeoutRef.current = setTimeout(() => {
+          marker.closePopup();
+        }, 250);
+      });
+
+      // Si el mouse entra al popup (para hacer click en "Agendar"), cancela el cierre
+      marker.on("popupopen", (e) => {
+        const popupEl = e.popup.getElement();
+        if (!popupEl) return;
+
+        popupEl.addEventListener("mouseenter", () => {
+          if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = null;
+          }
+        });
+
+        popupEl.addEventListener("mouseleave", () => {
+          hoverTimeoutRef.current = setTimeout(() => {
+            marker.closePopup();
+          }, 250);
+        });
+
+        // Reconecta el botón "Agendar cita" (igual que ya lo hacías en popupopen del mapa)
+        const boton = popupEl.querySelector(".btn-agendar-popup");
+        if (boton) {
+          boton.addEventListener("click", () => {
+            const profesionalId = boton.dataset.profesionalId;
+            const entry = marcadoresProfesionalesRef.current[profesionalId];
+            if (entry) {
+              setProfesionalParaAgendar(entry.prof);
+            }
+            setModalAbierto(true);
+          });
+        }
+      });
 
       // Guarda el marker JUNTO con los datos crudos para poder regenerar el ícono luego
       marcadoresProfesionalesRef.current[id] = { marker, prof, iniciales, imagenUrl, estadoCodigo };

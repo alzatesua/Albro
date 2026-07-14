@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useNotificacionesWS } from "@/hooks/useNotificacionesWS";
 import Portal from "@/components/ui/Portal";
 import { Check, Gavel, UserSearch, Search, ArrowLeft, ArrowRight, Loader2, CalendarDays, Clock } from "lucide-react";
 import {
@@ -77,6 +78,8 @@ const Stepper = ({ pasoActual, pasos }) => (
     })}
   </div>
 );
+
+
 
 // ─── Modal de búsqueda ──────────────────────────────────────────────────────
 const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar, profesionalPreseleccionado }) => {
@@ -328,6 +331,53 @@ useEffect(() => {
       setFecha(hoyISO());
     }
   }, [pasoActual, modo]);
+  
+  // ── Ref con el estado "vivo" para evitar closures obsoletas en el WS ──
+  const estadoVivoRef = useRef({ modo, profesionalSel, servicioSel, fecha, cupoSel });
+  useEffect(() => {
+    estadoVivoRef.current = { modo, profesionalSel, servicioSel, fecha, cupoSel };
+  }, [modo, profesionalSel, servicioSel, fecha, cupoSel]);
+
+  const handleCitaActualizada = useCallback((data) => {
+    const cita = data?.cita;
+    if (!cita) return;
+
+    // Leemos SIEMPRE el estado actual desde el ref, no desde el closure
+    const { modo, profesionalSel, servicioSel, fecha, cupoSel } = estadoVivoRef.current;
+
+    const viendoEsteHorario =
+      modo === "profesional" &&
+      profesionalSel &&
+      servicioSel &&
+      fecha &&
+      cita.profesional === profesionalSel &&
+      cita.fecha === fecha;
+
+    if (!viendoEsteHorario) return;
+
+    getAgendaProfesional(profesionalSel, servicioSel, fecha)
+      .then((nuevaAgenda) => {
+        setAgenda(nuevaAgenda);
+
+        if (cupoSel) {
+          const sigueDisponible = nuevaAgenda.cupos_disponibles.some(
+            (c) => c.hora_inicio === cupoSel.hora_inicio
+          );
+          if (!sigueDisponible) {
+            setCupoSel(null);
+            onNotificar?.({
+              tipo: "error",
+              mensaje: "Ese horario ya no está disponible, elige otro.",
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  }, [onNotificar]); // ← ya NO depende de modo/profesionalSel/servicioSel/fecha/cupoSel
+
+  useNotificacionesWS({ usuario, onCitaActualizada: handleCitaActualizada });
+
+
   
 
   return (

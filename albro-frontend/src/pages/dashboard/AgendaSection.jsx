@@ -1,12 +1,22 @@
 import { useState, useEffect, useRef   } from "react";
 import { Calendar, Clock, User, ChevronLeft, ChevronRight, CheckCheck, Play,XCircle, CalendarClock} from "lucide-react";
-import { getCitas, confirmarCita, cancelarCita, completarCita, reagendarCita, getEstadosProfesional, actualizarEstadoProfesional, getEstadoProfesional} from "../../services/api"; // ajusta la ruta según tu estructura
+import { getCitas, 
+    confirmarCita,
+    cancelarCita,
+    completarCita,
+    reagendarCita,
+    getEstadosProfesional,
+    actualizarEstadoProfesional,
+    getEstadoProfesional,
+    getConfiguracionSwitches,
+    actualizarConfiguracionSwitches
+         } from "../../services/api"; // ajusta la ruta según tu estructura
 import { useCitasSocket } from "../../hooks/useCitasSocket";
-import CitaAlertaModal from "../../components/CitaAlertaModal"; // ajusta la ruta
+import CitaAlertaModal from "../../components/CitaAlertaModal";
 import { useHoraServidor } from "../../hooks/useHoraServidor";
 import ReagendarModal from "../../components/ReagendarModal";
-import Toast from "../../components/Toast"; // ajusta la ruta según tu estructura
-
+import Toast from "../../components/Toast"; 
+import ModalSubirPortafolio from "../../components/ModalSubirPortafolio"; 
 
 // Duración de la caída de cada tarjeta al cambiar de dígito
 const FLIP_MS = 320;
@@ -275,6 +285,7 @@ const AgendaSection = () => {
   const [cargandoEstados, setCargandoEstados] = useState(true);
   const [estadoActivoId, setEstadoActivoId] = useState(null);
   const [actualizandoEstadoId, setActualizandoEstadoId] = useState(null);
+  const [citaParaPortafolio, setCitaParaPortafolio] = useState(null);
 
   const handleConfirmar = async (citaId) => {
     try {
@@ -360,8 +371,20 @@ const AgendaSection = () => {
     try {
       setCompletandoEnCurso(true);
       await completarCita(citaEnCurso.id);
+
+      const citaCompletada = citaEnCurso;
       setDuracionCronometro(null);
       setCitaEnCurso(null);
+
+      try {
+        const config = await getConfiguracionSwitches();
+        if (config.switches.mostrar_modal_portafolio) {
+          setCitaParaPortafolio(citaCompletada);
+        }
+      } catch {
+        // Si falla la consulta, mostramos el modal por defecto (fail-safe)
+        setCitaParaPortafolio(citaCompletada);
+      }
     } catch (err) {
       setError(err.message || "No se pudo completar la cita.");
     } finally {
@@ -535,6 +558,7 @@ const AgendaSection = () => {
     completada: "completadas",
     cancelada: "canceladas",
   }[tab];
+
 
   
 
@@ -857,6 +881,12 @@ const AgendaSection = () => {
             await handleCancelar(citaId);
             setCitaAConfirmarCancelacion(null);
           }}
+        />
+
+        <ModalSubirPortafolio
+          cita={citaParaPortafolio}
+          visible={!!citaParaPortafolio}
+          onCerrar={() => setCitaParaPortafolio(null)}
         />
     </div>
   );

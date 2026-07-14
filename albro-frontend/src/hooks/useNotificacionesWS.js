@@ -5,7 +5,7 @@ import { getWsTicket } from "@/services/api"; // ajusta el path real
 const WS_BASE_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8006";
 const RECONEXION_MS = 3000;
 
-export function useNotificacionesWS({ usuario, onNuevaNotificacion }) {
+export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActualizada }) {
   const socketRef = useRef(null);
   const reconectarTimeoutRef = useRef(null);
   const montadoRef = useRef(true);
@@ -42,14 +42,18 @@ export function useNotificacionesWS({ usuario, onNuevaNotificacion }) {
         try {
           const data = JSON.parse(event.data);
           if (data.evento === "notificacion" && data.notificacion) {
-            onNuevaNotificacion(data.notificacion);
+            onNuevaNotificacion?.(data.notificacion);
             reproducirSonido();
+          } else if (data.tipo && data.cita) {
+            onCitaActualizada?.(data);
           }
         } catch (err) {
           console.error("Error parseando mensaje WS:", err);
         }
-      };
+      }; 
 
+     
+ 
       socket.onclose = () => {
         socketRef.current = null;
         if (montadoRef.current) {
@@ -66,7 +70,7 @@ export function useNotificacionesWS({ usuario, onNuevaNotificacion }) {
         reconectarTimeoutRef.current = setTimeout(conectar, RECONEXION_MS);
       }
     }
-  }, [usuario?.id, onNuevaNotificacion, reproducirSonido]);
+  }, [usuario?.id, onNuevaNotificacion, onCitaActualizada, reproducirSonido]);
 
   useEffect(() => {
     montadoRef.current = true;

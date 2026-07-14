@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, User, Scissors, Map, Briefcase, UserCheck,
   Settings, CalendarClock, Users, Sun, Moon,
-  CheckCircle2, XCircle, Bell,
+  CheckCircle2, XCircle, Bell, TrendingUp,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 
@@ -23,6 +23,8 @@ import Portal from "@/components/ui/Portal";
 import { getNotificaciones, marcarNotificacionLeida, marcarTodasNotificacionesLeidas } from "@/services/api"; // ajusta el path real
 import { useNotificacionesWS } from "@/hooks/useNotificacionesWS";
 import Toast from "@/components/Toast";
+import HistoricoSection      from "@/pages/dashboard/HistoricoSection";
+import ModalCalificarProfesional from "@/components/ModalCalificarProfesional";
 
 // ─── Hook modo oscuro ─────────────────────────────────────────────────────────
 const useDarkMode = () => {
@@ -48,6 +50,7 @@ const menuProfesional = [
   { icono: Settings,      label: "Mi perfil",    key: "perfil" },
   { icono: CalendarClock, label: "Agenda",       key: "agenda" },
   { icono: Users,         label: "Mis clientes", key: "clientes" },
+  { icono: TrendingUp,    label: "Historial",    key: "historico" },
 ];
 
 // ─── Dock item ────────────────────────────────────────────────────────────────
@@ -177,6 +180,7 @@ const DashboardPage = () => {
     perfil:      <PerfilSection />,
     agenda:      <AgendaSection />,
     clientes:    <ClientesSection />,
+    historico:   <HistoricoSection />, 
   };
 
   // ── Notificaciones (dropdown) ────────────────────────────────────────────
@@ -193,6 +197,7 @@ const DashboardPage = () => {
   const notifRef = useRef(null);
   const [mostrarMenuPerfil, setMostrarMenuPerfil] = useState(false);
   const menuPerfilRef = useRef(null);
+  const [citaParaCalificar, setCitaParaCalificar] = useState(null);
   
 
   const hayNuevas = notificaciones.length > 0;
@@ -329,8 +334,21 @@ const DashboardPage = () => {
       return [notif, ...prev];
     });
 
-    setNotificacion({ tipo: "exito", mensaje: notif.mensaje, key: Date.now() }); // 👈 agregado key
-  }, []);
+    setNotificacion({ tipo: "exito", mensaje: notif.mensaje, key: Date.now() });
+
+    // Si la cita del cliente fue marcada como completada, ofrece calificar
+    if (
+      usuario?.rol === "cliente" &&
+      notif.data?.estado === "completada" &&
+      notif.data?.id                       // ← antes: notif.data?.cita_id
+    ) {
+      setCitaParaCalificar({
+        cita_id: notif.data.id,            // ← antes: notif.data.cita_id
+        profesional_nombre: notif.data.profesional_nombre,
+        servicio_nombre: notif.data.servicio_nombre,
+      });
+    }
+  }, [usuario]);
 
   useNotificacionesWS({ usuario, onNuevaNotificacion: manejarNuevaNotificacion });
 
@@ -347,6 +365,8 @@ const DashboardPage = () => {
     setMostrarMenuPerfil(false);
     navigate("/convertirme-en-profesional"); // ajusta la ruta según tu flujo
   };
+
+  
 
 
   return (
@@ -648,6 +668,15 @@ const DashboardPage = () => {
 
       {necesitaPerfil === true && (
         <ModalRegistroProfesional onCompleto={marcarCompleto} />
+      )}
+
+      {/* Modal para calificar profesional después de una cita completada */}
+      {citaParaCalificar && (
+        <ModalCalificarProfesional
+          cita={citaParaCalificar}
+          onClose={() => setCitaParaCalificar(null)}
+          onCalificado={() => setCitaParaCalificar(null)}
+        />
       )}
 
     </div>

@@ -3,7 +3,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import EstadoAtencion, PerfilProfesional, Departamento, Municipio
+
+from django.db.models import Count, Avg, Max, Min
+from .models import EstadoAtencion, PerfilProfesional, Departamento, Municipio, ImagenPortafolio
+from citas.models import Cita 
 from .serializers import (
     CambiarEstadoProfesionalSerializer,
     EstadoAtencionSerializer,
@@ -12,6 +15,10 @@ from .serializers import (
     MunicipioSerializer,
     HorariosAtencionSerializer,
     ProfesionalUbicacionSerializer,
+    CrearCalificacionSerializer,
+    ClienteDeProfesionalSerializer,
+    ImagenPortafolioSerializer,
+    SubirImagenPortafolioSerializer,
 )
 from datetime import datetime, date, timedelta
 from rest_framework.generics import get_object_or_404
@@ -20,6 +27,8 @@ from .utils import generar_cupos_disponibles
 from django.contrib.postgres.search import TrigramSimilarity
 from django.db.models import Q, Value
 from django.db.models.functions import Greatest
+from rest_framework.parsers import MultiPartParser, FormParser
+from .paginacion import PaginacionEstandar
 
 
 class RegistroProfesionalView(APIView):
@@ -505,3 +514,205 @@ class ServiciosDeProfesionalView(APIView):
         ]
 
         return Response({'servicios': servicios})
+
+
+class CalificarCitaView(APIView):
+    """
+    POST /api/profesionales/calificar/
+    body: { "cita_id": 5, "estrellas": 4, "comentario": "..." }
+
+    El cliente autenticado califica una cita ya completada.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = CrearCalificacionSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        calificacion = serializer.save()
+        return Response(
+            {
+                'mensaje': 'Calificación registrada exitosamente',
+                'calificacion': CrearCalificacionSerializer(
+                    calificacion, context={'request': request}
+                ).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ListarClientesProfesionalView(APIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = PaginacionEstandar
+
+    def get(self, request):
+        try:
+            perfil = request.user.perfil_profesional
+        except PerfilProfesional.DoesNotExist:
+            return Response(
+                {'detalle': 'El usuario aun no tiene perfil profesional.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        citas = Cita.objects.filter(
+            profesional=perfil
+        ).select_related(
+            'cliente', 'servicio', 'categoria', 'calificacion'
+        ).order_by('-fecha', '-hora_inicio')
+
+        estado = request.query_params.get('estado')
+        if estado:
+            citas = citas.filter(estado=estado)
+
+        paginator = self.pagination_class()
+        pagina = paginator.paginate_queryset(citas, request)
+
+        serializer = ClienteDeProfesionalSerializer(pagina, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+class ListarClientesUnicosProfesionalView(APIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = PaginacionEstandar
+
+    def get(self, request):
+        try:
+            perfil = request.user.perfil_profesional
+        except PerfilProfesional.DoesNotExist:
+            return Response(
+                {'detalle': 'El usuario aun no tiene perfil profesional.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        citas = Cita.objects.filter(profesional=perfil)
+
+        estado = request.query_params.get('estado')
+        if estado:
+            citas = citas.filter(estado=estado)
+
+        clientes = citas.values(
+            'cliente_id',
+            'cliente__nombre',
+            'cliente__apellido',
+            'cliente__email',
+            'cliente__telefono',
+        ).annotate(
+            total_citas=Count('id'),
+            primera_cita=Min('fecha'),
+            ultima_cita=Max('fecha'),
+            promedio_estrellas=Avg('calificacion__estrellas'),
+        ).order_by('-ultima_cita')
+
+        paginator = self.pagination_class()
+        pagina = paginator.paginate_queryset(clientes, request)
+
+        resultado = [
+            {
+                'cliente_id': c['cliente_id'],
+                'nombre': c['cliente__nombre'],
+                'apellido': c['cliente__apellido'],
+                'email': c['cliente__email'],
+                'telefono': c['cliente__telefono'],
+                'total_citas': c['total_citas'],
+                'primera_cita': c['primera_cita'],
+                'ultima_cita': c['ultima_cita'],
+                'promedio_estrellas': round(c['promedio_estrellas'], 1) if c['promedio_estrellas'] else None,
+            }
+            for c in pagina
+        ]
+
+        return paginator.get_paginated_response(resultado)
+
+class SubirImagenPortafolioView(APIView):
+    """
+    POST /api/profesionales/portafolio/
+    multipart/form-data:
+      - imagenes: (uno o varios archivos, misma key repetida)
+      - cita_id: 5 (opcional, aplica a todas las imágenes del lote)
+      - descripcion: "Corte fade + barba" (opcional, aplica a todas)
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        try:
+            request.user.perfil_profesional
+        except PerfilProfesional.DoesNotExist:
+            return Response(
+                {'detalle': 'El usuario aun no tiene perfil profesional.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Acepta 'imagenes' (nuevo, para múltiples) o 'imagen' (compatibilidad con el nombre anterior)
+        archivos = request.FILES.getlist('imagenes') or request.FILES.getlist('imagen')
+
+        if not archivos:
+            return Response(
+                {'detalle': 'Debes enviar al menos un archivo en el campo "imagenes".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cita_id = request.data.get('cita_id')
+        descripcion = request.data.get('descripcion', '')
+
+        imagenes_creadas = []
+        errores = []
+
+        for archivo in archivos:
+            data = {'imagen': archivo, 'descripcion': descripcion}
+            if cita_id:
+                data['cita_id'] = cita_id
+
+            serializer = SubirImagenPortafolioSerializer(
+                data=data,
+                context={'request': request},
+            )
+            if serializer.is_valid():
+                imagen = serializer.save()
+                imagenes_creadas.append(
+                    ImagenPortafolioSerializer(imagen, context={'request': request}).data
+                )
+            else:
+                errores.append({'archivo': archivo.name, 'errores': serializer.errors})
+
+        status_code = (
+            status.HTTP_201_CREATED if imagenes_creadas else status.HTTP_400_BAD_REQUEST
+        )
+        return Response(
+            {
+                'mensaje': f'{len(imagenes_creadas)} imagen(es) subida(s) exitosamente.',
+                'imagenes': imagenes_creadas,
+                'errores': errores,
+            },
+            status=status_code,
+        )
+
+class MiPortafolioView(APIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = PaginacionEstandar
+
+    def get(self, request):
+        try:
+            perfil = request.user.perfil_profesional
+        except PerfilProfesional.DoesNotExist:
+            return Response(
+                {'detalle': 'El usuario aun no tiene perfil profesional.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        imagenes = ImagenPortafolio.objects.filter(
+            profesional=perfil
+        ).select_related('cliente', 'cita', 'cita__servicio')
+
+        cliente_id = request.query_params.get('cliente')
+        if cliente_id:
+            imagenes = imagenes.filter(cliente_id=cliente_id)
+
+        paginator = self.pagination_class()
+        pagina = paginator.paginate_queryset(imagenes, request)
+
+        serializer = ImagenPortafolioSerializer(
+            pagina, many=True, context={'request': request}
+        )
+        return paginator.get_paginated_response(serializer.data)

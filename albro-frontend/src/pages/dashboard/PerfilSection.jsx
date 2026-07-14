@@ -5,7 +5,7 @@ import Toast from "../../components/Toast";
 import {
   actualizarImagenPerfil, getPerfilProfesional, actualizarDatosPersonales,
   actualizarMisHorarios, getMisServicios, eliminarServicio,
-  getDepartamentos, getMunicipios, getGeocodingApiKey, getEstadoProfesional,
+  getDepartamentos, getMunicipios, getGeocodingApiKey, getEstadoProfesional, getConfiguracionSwitches, actualizarConfiguracionSwitches
 } from "@/services/api";
 
 
@@ -209,6 +209,31 @@ const PerfilSection = () => {
   const hayHorarioInvalido = diasActivosLista.some(({ key }) => !horarioEsValido(horarios[key]));
   const [estadoActual, setEstadoActual] = useState(null); // { profesional_id, estado: { id, codigo, nombre, ... } }
   const [cargandoEstado, setCargandoEstado] = useState(true);
+
+
+  const [mostrarModalPortafolio, setMostrarModalPortafolio] = useState(null); // null = aún no sabemos
+  const [cargandoSwitches, setCargandoSwitches] = useState(true);
+
+  useEffect(() => {
+    getConfiguracionSwitches()
+      .then((data) => {
+        console.log("[DEBUG] switches recibidos:", data); // deja esto temporalmente
+        setMostrarModalPortafolio(data.switches.mostrar_modal_portafolio);
+      })
+      .catch((err) => console.error("Error cargando configuración:", err))
+      .finally(() => setCargandoSwitches(false));
+  }, []);
+  
+  const alternarModalPortafolio = async () => {
+    const nuevoValor = !mostrarModalPortafolio;
+    setMostrarModalPortafolio(nuevoValor); // optimista
+    try {
+      await actualizarConfiguracionSwitches({ mostrar_modal_portafolio: nuevoValor });
+    } catch (err) {
+      setMostrarModalPortafolio(!nuevoValor); // revierte si falla
+      console.error("Error guardando configuración:", err);
+    }
+  };
 
   const activarDiaHorario = (dia) => {
     setHorarios((h) => ({ ...h, [dia]: { ...h[dia], activo: true } }));
@@ -516,6 +541,8 @@ const PerfilSection = () => {
     }
   };
 
+  
+
   if (cargando) {
     return (
       <>
@@ -616,6 +643,33 @@ return (
               />
               {estadoActual?.estado?.nombre || "Sin estado"}
             </div>
+          )}
+
+          {cargandoSwitches || mostrarModalPortafolio === null ? (
+            <div className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700">
+              <span className="text-xs text-zinc-400 dark:text-zinc-500">Cargando preferencia...</span>
+            </div>
+          ) : (
+            <label className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 cursor-pointer select-none">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 text-left leading-tight">
+                Preguntar por fotos al completar una cita
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={mostrarModalPortafolio}
+                onClick={alternarModalPortafolio}
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+                  mostrarModalPortafolio ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    mostrarModalPortafolio ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </label>
           )}
         </div>
 

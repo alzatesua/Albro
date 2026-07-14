@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { loginUsuario } from "@/services/api";
-import fondoLogin from "@/assets/fondo-login.jpeg";
-import imagenDerecha from "@/assets/imege-derecha-login.jpg";
+import fondoLogin from "@/assets/fondo-login.jpg";
+import imagenDerecha from "@/assets/imege-derecha-login.png";
 
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -94,20 +94,7 @@ const LoginPage = () => {
       {/* Overlay general oscuro */}
       <div className="absolute inset-0 bg-black/50" />
 
-      {/* Botón modo oscuro */}
-      <button
-        onClick={() => setDark(!dark)}
-        className="absolute top-5 right-5 z-50 w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
-        style={{
-          background: "rgba(255,255,255,0.15)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-          border: "1px solid rgba(255,255,255,0.2)",
-          color: "white",
-        }}
-      >
-        {dark ? <Sun size={16} /> : <Moon size={16} />}
-      </button>
+    
 
       {/* Contenedor centrado */}
       <div
@@ -332,7 +319,6 @@ const LoginPage = () => {
               backgroundImage: `url(${imagenDerecha})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
-              filter: "grayscale(100%)",
             }}
           >
             <div className="absolute inset-0 bg-black/40" />

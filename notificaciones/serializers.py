@@ -24,6 +24,7 @@ class NotificacionSerializer(serializers.ModelSerializer):
         usuario_id = data.get('usuario')
         servicio_id = data.get('servicio')
         categoria_id = data.get('categoria')
+        remitente_id = data.get('remitente')
 
         if usuario_id:
             usuario = Usuario.objects.filter(pk=usuario_id).first()
@@ -39,5 +40,10 @@ class NotificacionSerializer(serializers.ModelSerializer):
             categoria = CategoriaServicio.objects.filter(pk=categoria_id).first()
             if categoria:
                 data['categoria_nombre'] = categoria.nombre
+
+        if remitente_id:
+            remitente = Usuario.objects.filter(pk=remitente_id).first()
+            if remitente:
+                data['remitente_nombre'] = f'{remitente.nombre} {remitente.apellido}'.strip()
 
         return data

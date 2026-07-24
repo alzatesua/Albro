@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
-import { Search, Star, ChevronLeft, ChevronRight, Users, Calendar } from "lucide-react";
+import { Search, Star, ChevronLeft, ChevronRight, Users, Calendar, MessageCircle } from "lucide-react";
 import { getMisClientesUnicos } from "../../services/api";
+import ChatModal from "../../components/chat/ChatModal"; // ajusta la ruta según dónde quede tu carpeta chat
 
 const PAGE_SIZE = 10;
 
@@ -45,6 +46,13 @@ const ClientesSection = () => {
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [totalClientes, setTotalClientes] = useState(0);
 
+  const [chatAbierto, setChatAbierto] = useState(false);
+  const [clienteChat, setClienteChat] = useState(null);
+
+  const abrirChat = (cliente) => {
+    setClienteChat(cliente);
+    setChatAbierto(true);
+  };
   const cargarClientes = useCallback(async (paginaActual) => {
     setCargando(true);
     setError(null);
@@ -175,6 +183,15 @@ const ClientesSection = () => {
                 </div>
               </div>
 
+              {/* Botón de chat */}
+              <button
+                onClick={() => abrirChat(cliente)}
+                className="w-9 h-9 rounded-full flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-900 hover:text-white dark:hover:bg-zinc-100 dark:hover:text-zinc-900 transition-colors shrink-0"
+                title={`Chatear con ${cliente.nombre}`}
+              >
+                <MessageCircle size={16} />
+              </button>
+
               {/* Badge total de citas */}
               <div className="shrink-0 text-center">
                 <div className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{cliente.total_citas}</div>
@@ -209,6 +226,12 @@ const ClientesSection = () => {
           </button>
         </div>
       )}
+      <ChatModal
+        abierto={chatAbierto}
+        onClose={() => setChatAbierto(false)}
+        clienteId={clienteChat?.cliente_id}
+        nombreContacto={clienteChat ? `${clienteChat.nombre} ${clienteChat.apellido}` : ""}
+      />
     </div>
   );
 };

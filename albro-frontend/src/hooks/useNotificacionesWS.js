@@ -5,7 +5,7 @@ import { getWsTicket } from "@/services/api"; // ajusta el path real
 const WS_BASE_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8006";
 const RECONEXION_MS = 3000;
 
-export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActualizada }) {
+export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActualizada, debeSilenciarSonido }) {
   const socketRef = useRef(null);
   const reconectarTimeoutRef = useRef(null);
   const montadoRef = useRef(true);
@@ -16,7 +16,7 @@ export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActual
     const rutaSonido = import.meta.env.VITE_SONIDO_NOTIFICACION || "/sounds/notificacion2.mp3";
     audioRef.current = new Audio(rutaSonido);
     audioRef.current.volume = 0.8;
-  }, []); //
+  }, []);
 
   const reproducirSonido = useCallback(() => {
     if (audioRef.current) {
@@ -43,17 +43,17 @@ export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActual
           const data = JSON.parse(event.data);
           if (data.evento === "notificacion" && data.notificacion) {
             onNuevaNotificacion?.(data.notificacion);
-            reproducirSonido();
+            if (!debeSilenciarSonido?.(data.notificacion)) {
+              reproducirSonido();
+            }
           } else if (data.tipo && data.cita) {
             onCitaActualizada?.(data);
           }
         } catch (err) {
           console.error("Error parseando mensaje WS:", err);
         }
-      }; 
+      };
 
-     
- 
       socket.onclose = () => {
         socketRef.current = null;
         if (montadoRef.current) {
@@ -70,7 +70,7 @@ export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActual
         reconectarTimeoutRef.current = setTimeout(conectar, RECONEXION_MS);
       }
     }
-  }, [usuario?.id, onNuevaNotificacion, onCitaActualizada, reproducirSonido]);
+  }, [usuario?.id, onNuevaNotificacion, onCitaActualizada, reproducirSonido, debeSilenciarSonido]);
 
   useEffect(() => {
     montadoRef.current = true;

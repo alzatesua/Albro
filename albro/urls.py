@@ -29,6 +29,7 @@ urlpatterns = [
     # por ejemplo: path('api/subastas/', include('subastas.urls')),
     path('api/', include('notificaciones.urls')),
     path('api/configuraciones/', include('configuraciones.urls')),
+    path('api/', include('mensajeria.urls')),
 ]
 
 # Servir archivos de media en modo desarrollo

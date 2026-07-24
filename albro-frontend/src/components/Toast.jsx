@@ -82,7 +82,7 @@ const Toast = ({ toast, onClose }) => {
                   esError ? "text-red-700 dark:text-red-300" : "text-zinc-800 dark:text-zinc-100"
                 }`}
               >
-                {esError ? "Ocurrió un error" : "Listo"}
+                {toastVisible.titulo || (esError ? "Ocurrió un error" : "Listo")}
               </p>
               <p
                 className={`text-xs mt-0.5 leading-snug ${

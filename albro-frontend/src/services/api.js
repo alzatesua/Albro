@@ -343,3 +343,28 @@ export const cancelarCita = (citaId) =>
   request(`/citas/${citaId}/cancel/`, {
     method: "POST",
   });
+
+// ─── Mensajería / Chat ────────────────────────────────────────────────────
+
+export const getConversaciones = () =>
+  request("/conversaciones/");
+
+// Como profesional: pásale { cliente_id }. Como cliente: { profesional_id }.
+export const obtenerOCrearConversacion = (payload) =>
+  request("/conversaciones/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const getMensajesConversacion = (conversacionId, { page, page_size } = {}) => {
+  const params = new URLSearchParams();
+  if (page) params.set("page", page);
+  if (page_size) params.set("page_size", page_size);
+  const query = params.toString();
+  return request(`/conversaciones/${conversacionId}/mensajes/${query ? `?${query}` : ""}`);
+};
+
+export const marcarConversacionLeida = (conversacionId) =>
+  request(`/conversaciones/${conversacionId}/marcar_leido/`, {
+    method: "POST",
+  });

@@ -11,6 +11,7 @@ class Notificacion(models.Model):
     TIPO_CHOICES = [
         ('cita', 'Cita'),
         ('subasta', 'Subasta'),
+        ('mensaje', 'Mensaje'),
         ('sistema', 'Sistema'),
     ]
 

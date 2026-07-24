@@ -25,6 +25,8 @@ import { useNotificacionesWS } from "@/hooks/useNotificacionesWS";
 import Toast from "@/components/Toast";
 import HistoricoSection      from "@/pages/dashboard/HistoricoSection";
 import ModalCalificarProfesional from "@/components/ModalCalificarProfesional";
+import MisCitasSection from "@/pages/dashboard/MisCitasSection";
+import ChatModal from "@/components/chat/ChatModal";
 
 // ─── Hook modo oscuro ─────────────────────────────────────────────────────────
 const useDarkMode = () => {
@@ -41,9 +43,10 @@ const SECCION_STORAGE_KEY = "dashboard_seccion_activa";
 
 // ─── Menús por rol ────────────────────────────────────────────────────────────
 const menuCliente = [
-  { icono: Map,        label: "Mapa",            key: "mapa" },
-  { icono: Briefcase,  label: "Servicios",       key: "servicios" },
-  { icono: UserCheck,  label: "Ser profesional", key: "profesional" },
+  { icono: Map,           label: "Mapa",            key: "mapa" },
+  { icono: Briefcase,     label: "Servicios",       key: "servicios" },
+  { icono: CalendarClock, label: "Mis citas",       key: "misCitas" },
+  { icono: UserCheck,     label: "Ser profesional", key: "profesional" },
 ];
 
 const menuProfesional = [
@@ -176,11 +179,12 @@ const DashboardPage = () => {
   const secciones = {
     mapa:        <MapaSection />,
     servicios:   <ServiciosSection onNotificar={setNotificacion} />,
+    misCitas:    <MisCitasSection />,
     profesional: <SerProfesionalSection />,
     perfil:      <PerfilSection />,
     agenda:      <AgendaSection />,
     clientes:    <ClientesSection />,
-    historico:   <HistoricoSection />, 
+    historico:   <HistoricoSection />,
   };
 
   // ── Notificaciones (dropdown) ────────────────────────────────────────────
@@ -198,12 +202,23 @@ const DashboardPage = () => {
   const [mostrarMenuPerfil, setMostrarMenuPerfil] = useState(false);
   const menuPerfilRef = useRef(null);
   const [citaParaCalificar, setCitaParaCalificar] = useState(null);
-  
-
+  const [chatAbierto, setChatAbierto] = useState(null); 
+  const chatAbiertoRef = useRef(null);
   const hayNuevas = notificaciones.length > 0;
 
   // ── Animación shake de la campana cada 10s mientras haya notificaciones nuevas ──
   const [animarCampana, setAnimarCampana] = useState(false);
+
+
+  useEffect(() => {
+    chatAbiertoRef.current = chatAbierto;
+  }, [chatAbierto]);
+
+  const esNotificacionDelChatVisible = useCallback((notif) => {
+    const abierto = chatAbiertoRef.current;
+    if (!abierto || notif?.tipo !== "mensaje") return false;
+    return Number(notif?.data?.conversacion) === Number(abierto.conversacionId);
+  }, []);
 
   useEffect(() => {
     if (!hayNuevas) return;
@@ -287,7 +302,6 @@ const DashboardPage = () => {
 
   // Marca una notificación como leída y la saca de la lista de "no leídas"
   const abrirDetalleNotificacion = async (n) => {
-    setNotificacionSeleccionada(n);
     setMostrarNotificaciones(false);
 
     if (!n.leida) {
@@ -298,6 +312,16 @@ const DashboardPage = () => {
         console.error("Error marcando notificación como leída:", err);
       }
     }
+
+    if (n.tipo === "mensaje" && n.data?.conversacion) {
+      setChatAbierto({
+        conversacionId: n.data.conversacion,
+        nombreContacto: n.data.remitente_nombre || "Chat",
+      });
+      return;
+    }
+
+    setNotificacionSeleccionada(n);
   };
 
   const formatearFecha = (isoString) => {
@@ -334,21 +358,22 @@ const DashboardPage = () => {
       return [notif, ...prev];
     });
 
-    setNotificacion({ tipo: "exito", mensaje: notif.mensaje, key: Date.now() });
+    if (!esNotificacionDelChatVisible(notif)) {
+      setNotificacion({ tipo: "exito", titulo: notif.titulo, mensaje: notif.mensaje, key: Date.now() });
+    }
 
-    // Si la cita del cliente fue marcada como completada, ofrece calificar
     if (
       usuario?.rol === "cliente" &&
       notif.data?.estado === "completada" &&
-      notif.data?.id                       // ← antes: notif.data?.cita_id
+      notif.data?.id
     ) {
       setCitaParaCalificar({
-        cita_id: notif.data.id,            // ← antes: notif.data.cita_id
+        cita_id: notif.data.id,
         profesional_nombre: notif.data.profesional_nombre,
         servicio_nombre: notif.data.servicio_nombre,
       });
     }
-  }, [usuario]);
+  }, [usuario, esNotificacionDelChatVisible]);
 
   useNotificacionesWS({ usuario, onNuevaNotificacion: manejarNuevaNotificacion });
 
@@ -678,6 +703,13 @@ const DashboardPage = () => {
           onCalificado={() => setCitaParaCalificar(null)}
         />
       )}
+
+      <ChatModal
+        abierto={!!chatAbierto}
+        conversacionId={chatAbierto?.conversacionId}
+        nombreContacto={chatAbierto?.nombreContacto}
+        onClose={() => setChatAbierto(null)}
+      />
 
     </div>
   );

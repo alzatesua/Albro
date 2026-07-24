@@ -324,7 +324,7 @@ const LoginPage = () => {
             <div className="absolute inset-0 bg-black/40" />
             <div className="relative z-10 space-y-2">
               <h3 className="text-white text-2xl font-bold leading-snug">
-                Gestiona tus citas mas rapido y desde un solo lugar
+                Encuentra y gestiona tus citas mas rapido y desde un solo lugar
               </h3>
             </div>
           </div>

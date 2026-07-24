@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { User, Mail, Lock, Phone, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { registrarUsuario } from "@/services/api";

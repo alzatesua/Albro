@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { loginUsuario } from "@/services/api";
 import fondoLogin from "@/assets/fondo-login.jpg";

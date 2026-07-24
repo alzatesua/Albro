@@ -1,5 +1,5 @@
-import { BrowserRouter } from "react-router/dom";
-import { Routes, Route, Navigate } from "react-router";import { AuthProvider } from "@/context/AuthContext";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { AuthProvider } from "@/context/AuthContext";
 import RutaProtegida from "@/components/RutaProtegida";
 import LoginPage from "@/pages/LoginPage";
 import Registropage from "@/pages/Registropage";

@@ -21,6 +21,10 @@ from .views import (
     ListarClientesUnicosProfesionalView,
     SubirImagenPortafolioView,
     MiPortafolioView,
+    CatalogoProfesionalView,
+    MiCatalogoView,
+    EliminarImagenPortafolioView,
+    MiCodigoQRView,
 )
 
 urlpatterns = [
@@ -47,6 +51,10 @@ urlpatterns = [
     path('mis-clientes/unicos/', ListarClientesUnicosProfesionalView.as_view(), name='mis-clientes-unicos'),
     path('portafolio/', SubirImagenPortafolioView.as_view(), name='subir-portafolio'),
     path('portafolio/listar/', MiPortafolioView.as_view(), name='mi-portafolio'),
+    path('<int:profesional_id>/catalogo/', CatalogoProfesionalView.as_view(), name='catalogo-profesional'),
+    path('mi-catalogo/', MiCatalogoView.as_view(), name='mi-catalogo'),
+    path('portafolio/<int:imagen_id>/', EliminarImagenPortafolioView.as_view(), name='eliminar-imagen-portafolio'),
+    path('mi-qr/', MiCodigoQRView.as_view(), name='mi-qr'),
 ]
 
 if settings.DEBUG:

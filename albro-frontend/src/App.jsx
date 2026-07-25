@@ -4,6 +4,7 @@ import RutaProtegida from "@/components/RutaProtegida";
 import LoginPage from "@/pages/LoginPage";
 import Registropage from "@/pages/Registropage";
 import DashboardPage from "@/pages/DashboardPage";
+import AgendarProfesionalPage from "@/pages/AgendarProfesionalPage";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
               </RutaProtegida>
             }
           />
+          <Route path="/agendar/:profesionalId" element={<AgendarProfesionalPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>

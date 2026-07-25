@@ -84,7 +84,7 @@ const MisCitasSection = () => {
       {citas.map((cita) => (
         <div
           key={cita.id}
-          className="rounded-xl border border-zinc-100 dark:border-zinc-800 p-4 flex items-start justify-between gap-4"
+          className="rounded-xl border border-zinc-100 dark:border-zinc-800 p-4 flex items-center justify-between gap-4"
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -110,35 +110,25 @@ const MisCitasSection = () => {
               </div>
             )}
           </div>
-          
 
-          {(cita.estado === "pendiente" || cita.estado === "confirmada") && (
-            <button
-              onClick={() => cancelarCita(cita.id)}
-              className="shrink-0 text-xs font-medium text-red-500 hover:text-red-600 flex items-center gap-1"
-            >
-              <XCircle size={14} />
-              Cancelar
-            </button>
-          )}
-           <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {cita.profesional && (
               <button
                 onClick={() => setChatCita(cita)}
-                className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-full px-2.5 py-1 leading-none transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
               >
-                <MessageCircle size={14} />
-                Mensaje
+                <MessageCircle size={14} className="shrink-0" />
+                <span>Mensaje</span>
               </button>
             )}
 
             {(cita.estado === "pendiente" || cita.estado === "confirmada") && (
               <button
                 onClick={() => cancelarCita(cita.id)}
-                className="text-xs font-medium text-red-500 hover:text-red-600 flex items-center gap-1"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-600 border border-red-200 dark:border-red-800 rounded-full px-2.5 py-1 leading-none transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
               >
-                <XCircle size={14} />
-                Cancelar
+                <XCircle size={14} className="shrink-0" />
+                <span>Cancelar</span>
               </button>
             )}
           </div>

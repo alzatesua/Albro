@@ -1,7 +1,7 @@
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 
 from django.db.models import Count, Avg, Max, Min
@@ -30,6 +30,10 @@ from django.db.models.functions import Greatest
 from rest_framework.parsers import MultiPartParser, FormParser
 from .paginacion import PaginacionEstandar
 
+import qrcode
+import io
+import base64
+from django.conf import settings
 
 class RegistroProfesionalView(APIView):
     permission_classes = [IsAuthenticated]
@@ -716,3 +720,191 @@ class MiPortafolioView(APIView):
             pagina, many=True, context={'request': request}
         )
         return paginator.get_paginated_response(serializer.data)
+
+def _construir_catalogo(perfil, request):
+    """
+    Arma el catálogo completo de un profesional:
+    - info de perfil
+    - servicios agrupados por categoría
+    - preview del portafolio
+    - promedio de calificación
+    Se usa tanto para la vista pública (por id) como para 'mi catálogo'.
+    """
+    # ── Info del profesional ────────────────────────────────────────────
+    foto_perfil = None
+    if perfil.imagen_perfil:
+        foto_perfil = request.build_absolute_uri(perfil.imagen_perfil.url)
+
+    calificaciones = Cita.objects.filter(
+        profesional=perfil,
+        calificacion__isnull=False,
+    ).aggregate(
+        promedio=Avg('calificacion__estrellas'),
+        total=Count('calificacion'),
+    )
+
+    info_profesional = {
+        'id': perfil.id,
+        'nombre_local': perfil.nombre_local,
+        'nombre_completo': f"{perfil.usuario.nombre} {perfil.usuario.apellido}".strip(),
+        'descripcion': perfil.descripcion,
+        'foto_perfil': foto_perfil,
+        'direccion': getattr(perfil, 'direccion', None),
+        'latitud': getattr(perfil, 'latitud', None),
+        'longitud': getattr(perfil, 'longitud', None),
+        'estado': EstadoAtencionSerializer(perfil.estado).data if perfil.estado else None,
+        'promedio_calificacion': round(calificaciones['promedio'], 1) if calificaciones['promedio'] else None,
+        'total_valoraciones': calificaciones['total'],
+    }
+
+    # ── Servicios agrupados por categoría ───────────────────────────────
+    relaciones = ServicioProfesional.objects.filter(
+        profesional=perfil,
+        activo=True,
+    ).select_related('servicio', 'servicio__categoria').order_by(
+        'servicio__categoria__nombre', 'servicio__nombre'
+    )
+
+    categorias_map = {}
+    for rel in relaciones:
+        categoria = rel.servicio.categoria
+        categoria_id = categoria.id if categoria else None
+
+        if categoria_id not in categorias_map:
+            categorias_map[categoria_id] = {
+                'id': categoria_id,
+                'nombre': categoria.nombre if categoria else 'Sin categoría',
+                'servicios': [],
+            }
+
+        categorias_map[categoria_id]['servicios'].append({
+            'id': rel.servicio.id,
+            'nombre': rel.servicio.nombre,
+            'descripcion': rel.servicio.descripcion,
+            'precio': str(rel.precio),
+            'duracion_minutos': rel.duracion_minutos,
+        })
+
+    categorias = list(categorias_map.values())
+
+    # ── Portafolio (preview, no paginado — para eso ya existe /portafolio/) ──
+    imagenes_preview = ImagenPortafolio.objects.filter(
+        profesional=perfil,
+    ).select_related('cliente', 'cita', 'cita__servicio')[:12]
+
+    portafolio = ImagenPortafolioSerializer(
+        imagenes_preview, many=True, context={'request': request}
+    ).data
+
+    return {
+        'profesional': info_profesional,
+        'categorias': categorias,
+        'portafolio': portafolio,
+    }
+
+
+class CatalogoProfesionalView(APIView):
+    """
+    GET /api/profesionales/<profesional_id>/catalogo/
+
+    Catálogo público de un profesional: perfil + servicios agrupados
+    por categoría + preview de portafolio + promedio de calificación.
+    Endpoint público — no requiere autenticación.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, profesional_id):
+        perfil = get_object_or_404(
+            PerfilProfesional.objects.select_related('usuario', 'estado'),
+            pk=profesional_id,
+            activo=True,
+        )
+        return Response(_construir_catalogo(perfil, request))
+
+class MiCatalogoView(APIView):
+    """
+    GET /api/profesionales/mi-catalogo/
+
+    Mismo formato que CatalogoProfesionalView, pero para el
+    profesional autenticado (para gestionar/previsualizar el suyo).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            perfil = request.user.perfil_profesional
+        except PerfilProfesional.DoesNotExist:
+            return Response(
+                {'detalle': 'El usuario aun no tiene perfil profesional.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(_construir_catalogo(perfil, request))
+
+class EliminarImagenPortafolioView(APIView):
+    """
+    DELETE /api/profesionales/portafolio/<int:imagen_id>/
+
+    Elimina una imagen del portafolio. Solo el profesional dueño
+    de la imagen puede borrarla.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, imagen_id):
+        try:
+            perfil = request.user.perfil_profesional
+        except PerfilProfesional.DoesNotExist:
+            return Response(
+                {'detalle': 'El usuario aun no tiene perfil profesional.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        imagen = get_object_or_404(ImagenPortafolio, pk=imagen_id, profesional=perfil)
+
+        # Borra también el archivo físico/en storage, no solo el registro
+        if imagen.imagen:
+            imagen.imagen.delete(save=False)
+
+        imagen.delete()
+
+        return Response(
+            {'mensaje': 'Imagen eliminada exitosamente.'},
+            status=status.HTTP_200_OK,
+        )
+
+class MiCodigoQRView(APIView):
+    """
+    GET /api/profesionales/mi-qr/
+
+    Genera un código QR que apunta al deep link público del profesional
+    (ej. https://tuapp.com/agendar/5). Al escanearlo, el cliente:
+      - si no tiene sesión: va a login/registro
+      - si ya tiene sesión: cae directo en el modal de agendar con
+        este profesional preseleccionado
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            perfil = request.user.perfil_profesional
+        except PerfilProfesional.DoesNotExist:
+            return Response(
+                {'detalle': 'El usuario aun no tiene perfil profesional.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        frontend_url = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:5173').rstrip('/')
+        link = f"{frontend_url}/agendar/{perfil.id}"
+
+        qr = qrcode.QRCode(box_size=8, border=2)
+        qr.add_data(link)
+        qr.make(fit=True)
+        imagen = qr.make_image(fill_color="black", back_color="white")
+
+        buffer = io.BytesIO()
+        imagen.save(buffer, format="PNG")
+        qr_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+        return Response({
+            'url': link,
+            'qr_base64': f"data:image/png;base64,{qr_base64}",
+        })

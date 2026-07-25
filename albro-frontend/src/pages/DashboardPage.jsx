@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, User, Scissors, Map, Briefcase, UserCheck,
   Settings, CalendarClock, Users, Sun, Moon,
-  CheckCircle2, XCircle, Bell, TrendingUp,
+  CheckCircle2, XCircle, Bell, TrendingUp, BookOpen,
 } from "lucide-react";
+
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Secciones ────────────────────────────────────────────────────────────────
@@ -27,6 +28,8 @@ import HistoricoSection      from "@/pages/dashboard/HistoricoSection";
 import ModalCalificarProfesional from "@/components/ModalCalificarProfesional";
 import MisCitasSection from "@/pages/dashboard/MisCitasSection";
 import ChatModal from "@/components/chat/ChatModal";
+import MiCatalogoSection from "@/pages/dashboard/MiCatalogoSection";
+import { AGENDAR_PENDIENTE_KEY } from "@/pages/AgendarProfesionalPage";
 
 // ─── Hook modo oscuro ─────────────────────────────────────────────────────────
 const useDarkMode = () => {
@@ -51,6 +54,7 @@ const menuCliente = [
 
 const menuProfesional = [
   { icono: Settings,      label: "Mi perfil",    key: "perfil" },
+  { icono: BookOpen,      label: "Mi catálogo",  key: "catalogo" },
   { icono: CalendarClock, label: "Agenda",       key: "agenda" },
   { icono: Users,         label: "Mis clientes", key: "clientes" },
   { icono: TrendingUp,    label: "Historial",    key: "historico" },
@@ -150,6 +154,10 @@ const DashboardPage = () => {
   const esProfesional = usuario?.rol === "profesional";
   const menu = esProfesional ? menuProfesional : menuCliente;
 
+  const [profesionalIdPendiente, setProfesionalIdPendiente] = useState(
+    () => localStorage.getItem(AGENDAR_PENDIENTE_KEY)
+  );
+
   // ── NUEVO: sección activa persistida en localStorage ─────────────────────
   const [seccionActiva, setSeccionActivaState] = useState(() => {
     const guardada = localStorage.getItem(SECCION_STORAGE_KEY);
@@ -173,15 +181,31 @@ const DashboardPage = () => {
   };
   // ──────────────────────────────────────────────────────────────────────────
 
+  useEffect(() => {
+    if (profesionalIdPendiente && usuario) {
+      setSeccionActiva("mapa");
+    }
+  }, [profesionalIdPendiente, usuario]);
+
+  const consumirProfesionalPendiente = () => {
+    localStorage.removeItem(AGENDAR_PENDIENTE_KEY);
+    setProfesionalIdPendiente(null);
+  };
   const { necesitaPerfil, marcarCompleto } = usePerfilProfesional(usuario?.rol);
 
   // ── Movido acá dentro para poder pasar setNotificacion como prop ────────
   const secciones = {
-    mapa:        <MapaSection />,
+    mapa: (
+      <MapaSection
+        profesionalIdInicial={seccionActiva === "mapa" ? profesionalIdPendiente : null}
+        onConsumirProfesionalInicial={consumirProfesionalPendiente}
+      />
+    ),
     servicios:   <ServiciosSection onNotificar={setNotificacion} />,
     misCitas:    <MisCitasSection />,
     profesional: <SerProfesionalSection />,
     perfil:      <PerfilSection />,
+    catalogo:    <MiCatalogoSection />,
     agenda:      <AgendaSection />,
     clientes:    <ClientesSection />,
     historico:   <HistoricoSection />,

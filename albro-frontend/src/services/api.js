@@ -356,9 +356,9 @@ export const obtenerOCrearConversacion = (payload) =>
     body: JSON.stringify(payload),
   });
 
-export const getMensajesConversacion = (conversacionId, { page, page_size } = {}) => {
+export const getMensajesConversacion = (conversacionId, { cursor, page_size } = {}) => {
   const params = new URLSearchParams();
-  if (page) params.set("page", page);
+  if (cursor) params.set("cursor", cursor);
   if (page_size) params.set("page_size", page_size);
   const query = params.toString();
   return request(`/conversaciones/${conversacionId}/mensajes/${query ? `?${query}` : ""}`);
@@ -368,3 +368,17 @@ export const marcarConversacionLeida = (conversacionId) =>
   request(`/conversaciones/${conversacionId}/marcar_leido/`, {
     method: "POST",
   });
+
+export const getCatalogoProfesional = (profesionalId) =>
+  request(`/profesionales/${profesionalId}/catalogo/`);
+
+export const getMiCatalogo = () =>
+  request(`/profesionales/mi-catalogo/`);
+
+export const eliminarImagenPortafolio = (imagenId) =>
+  request(`/profesionales/portafolio/${imagenId}/`, {
+    method: "DELETE",
+  });
+
+export const getMiCodigoQR = () =>
+  request(`/profesionales/mi-qr/`);

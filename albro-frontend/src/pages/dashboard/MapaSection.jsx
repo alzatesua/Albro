@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { Search, CalendarClock } from "lucide-react";
 import Toast from "../../components/Toast";
 import ModalBuscarServicio from "./ModalBuscarServicio";
-import { getUbicacionesProfesionales, buscarProfesionales } from "../../services/api";
+import ModalCatalogoProfesional from "../../components/ModalCatalogoProfesional";
+import { getUbicacionesProfesionales, buscarProfesionales, getCatalogoProfesional } from "../../services/api";
+
 
 const ZOOM_DEFAULT = 15;
 
@@ -71,7 +73,7 @@ const crearAvatarPinIcon = ({ imagenUrl, iniciales, id, seleccionado = false, es
 };
 
 // ─── Mapa principal ─────────────────────────────────────────────────────────
-const MapaSection = () => {
+const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null); // evita doble init en StrictMode
   const [estado, setEstado] = useState({ cargando: true, error: null, listo: false });
@@ -92,6 +94,7 @@ const MapaSection = () => {
   const ZOOM_PAIS = 6; // zoom inicial mientras no sabemos la ubicación del cliente
   const CENTRO_DEFECTO = { lat: 4.5709, lng: -74.2973 }; // Colombia, centro aproximado
   const hoverTimeoutRef = useRef(null);
+  
 
   const mostrarToast = (mensaje, tipo = "success") => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -104,7 +107,34 @@ const MapaSection = () => {
     setToast(null);
   };
 
-  
+  // ── Modal de catálogo público ──────────────────────────────────────────
+  const [catalogoAbierto, setCatalogoAbierto] = useState(null); // profesional crudo
+  const [catalogoData, setCatalogoData] = useState(null);
+  const [cargandoCatalogo, setCargandoCatalogo] = useState(false);
+  const [errorCatalogo, setErrorCatalogo] = useState(null);
+
+  const abrirCatalogo = async (prof) => {
+    setCatalogoAbierto(prof);
+    setCatalogoData(null);
+    setErrorCatalogo(null);
+    setCargandoCatalogo(true);
+    try {
+      const data = await getCatalogoProfesional(prof.id);
+      setCatalogoData(data);
+    } catch (err) {
+      console.error("Error cargando catálogo público:", err);
+      setErrorCatalogo(err.message || "No se pudo cargar el catálogo.");
+    } finally {
+      setCargandoCatalogo(false);
+    }
+  };
+
+  const cerrarCatalogo = () => {
+    setCatalogoAbierto(null);
+    setCatalogoData(null);
+    setErrorCatalogo(null);
+  };
+    
 
   useEffect(() => {
     // Evita reinicializar si ya existe instancia
@@ -141,6 +171,17 @@ const MapaSection = () => {
               setProfesionalParaAgendar(entry.prof);
             }
             setModalAbierto(true);
+          });
+        }
+
+        const botonCatalogo = e.popup.getElement()?.querySelector('.btn-catalogo-popup');
+        if (botonCatalogo) {
+          botonCatalogo.addEventListener('click', () => {
+            const profesionalId = botonCatalogo.dataset.profesionalId;
+            const entry = marcadoresProfesionalesRef.current[profesionalId];
+            if (entry) {
+              abrirCatalogo(entry.prof);
+            }
           });
         }
       });
@@ -279,6 +320,37 @@ const MapaSection = () => {
     };
   }, [estado.listo]);
 
+  // ── Deep link desde QR: abre el modal de agendar con el profesional ya cargado ──
+  useEffect(() => {
+    if (!profesionalIdInicial || !estado.listo) return;
+
+    const cargarYAbrir = async () => {
+      try {
+        const data = await getCatalogoProfesional(profesionalIdInicial);
+        const p = data.profesional;
+        const partesNombre = (p.nombre_completo || p.nombre_local || "").split(" ");
+
+        setProfesionalParaAgendar({
+          id: p.id,
+          nombre: partesNombre[0] || p.nombre_local,
+          apellido: partesNombre.slice(1).join(" "),
+          direccion: p.direccion,
+          latitud: p.latitud,
+          longitud: p.longitud,
+          estado: p.estado,
+        });
+        setModalAbierto(true);
+      } catch (err) {
+        console.error("No se pudo cargar el profesional del QR:", err);
+        mostrarToast("No se pudo abrir la cita de ese profesional", "error");
+      } finally {
+        onConsumirProfesionalInicial?.();
+      }
+    };
+
+    cargarYAbrir();
+  }, [profesionalIdInicial, estado.listo]);
+
   const reintentar = () => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
@@ -331,11 +403,30 @@ const MapaSection = () => {
               ${prof.estado?.nombre || "Sin estado"}
             </span>
             <button
-              class="btn-agendar-popup"
+              class="btn-catalogo-popup"
               data-profesional-id="${prof.id}"
               style="
                 display:block;
                 margin-top:8px;
+                width:100%;
+                background:#fff;
+                color:#18181b;
+                border:1px solid #d4d4d8;
+                border-radius:9999px;
+                padding:6px 12px;
+                font-size:12px;
+                font-weight:500;
+                cursor:pointer;
+              "
+            >
+              Ver catálogo
+            </button>
+            <button
+              class="btn-agendar-popup"
+              data-profesional-id="${prof.id}"
+              style="
+                display:block;
+                margin-top:6px;
                 width:100%;
                 background:#18181b;
                 color:#fff;
@@ -397,6 +488,18 @@ const MapaSection = () => {
               setProfesionalParaAgendar(entry.prof);
             }
             setModalAbierto(true);
+          });
+        }
+
+        // Conecta el botón "Ver catálogo"
+        const botonCatalogo = popupEl.querySelector(".btn-catalogo-popup");
+        if (botonCatalogo) {
+          botonCatalogo.addEventListener("click", () => {
+            const profesionalId = botonCatalogo.dataset.profesionalId;
+            const entry = marcadoresProfesionalesRef.current[profesionalId];
+            if (entry) {
+              abrirCatalogo(entry.prof);
+            }
           });
         }
       });
@@ -557,6 +660,19 @@ const MapaSection = () => {
           }}
         />
       )}
+
+      <ModalCatalogoProfesional
+        profesional={catalogoAbierto}
+        catalogo={catalogoData}
+        cargando={cargandoCatalogo}
+        error={errorCatalogo}
+        onClose={cerrarCatalogo}
+        onAgendar={(prof) => {
+          setProfesionalParaAgendar(prof);
+          setModalAbierto(true);
+          cerrarCatalogo();
+        }}
+      />
     </div>
   );
 };

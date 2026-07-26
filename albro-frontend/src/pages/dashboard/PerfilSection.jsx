@@ -188,6 +188,8 @@ const PerfilSection = () => {
     bio: "",            // descripcion
     direccion: "",
     ubicacion: "",
+    notificar_citas_por_correo: true,      
+    notificar_mensajes_por_correo: true,   
   });
 
   const [servicios, setServicios] = useState([]);
@@ -285,6 +287,8 @@ const PerfilSection = () => {
         bio: data.descripcion || "",
         direccion: data.direccion || "",
         ubicacion: data.ubicacion || "",
+        notificar_citas_por_correo: data.notificar_citas_por_correo ?? true,    
+        notificar_mensajes_por_correo: data.notificar_mensajes_por_correo ?? true,
       });
 
       setHorarios(mapearHorariosDesdeApi(data.horarios_atencion));
@@ -382,6 +386,8 @@ const PerfilSection = () => {
     municipio_id: municipioId,
     latitud: coordsExactas.latitud,
     longitud: coordsExactas.longitud,
+    notificar_citas_por_correo: form.notificar_citas_por_correo,       
+    notificar_mensajes_por_correo: form.notificar_mensajes_por_correo, 
   });
 
   const geocodificarDireccion = async (direccionCompleta) => {
@@ -808,6 +814,57 @@ return (
                   </select>
                 </Campo>
               </div>
+              <div className="space-y-2 pt-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                  Notificaciones por correo
+                </p>
+
+                <label className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 cursor-pointer select-none">
+                  <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                    Avisarme cuando tenga una cita pendiente por confirmar
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={form.notificar_citas_por_correo}
+                    onClick={() =>
+                      actualizar("notificar_citas_por_correo", !form.notificar_citas_por_correo)
+                    }
+                    className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+                      form.notificar_citas_por_correo ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        form.notificar_citas_por_correo ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </label>
+
+                <label className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 cursor-pointer select-none">
+                  <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                    Avisarme cuando tenga un mensaje sin responder
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={form.notificar_mensajes_por_correo}
+                    onClick={() =>
+                      actualizar("notificar_mensajes_por_correo", !form.notificar_mensajes_por_correo)
+                    }
+                    className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+                      form.notificar_mensajes_por_correo ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        form.notificar_mensajes_por_correo ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </label>
+              </div>
               <Campo icono={FileText} label="Sobre ti">
                 <textarea
                   className={`${inputCls} resize-none`}
@@ -816,6 +873,7 @@ return (
                   onChange={(e) => actualizar("bio", e.target.value)}
                   placeholder="Cuéntale a tus clientes sobre tu experiencia y estilo de trabajo"
                 />
+
               </Campo>
             </div>
           )}

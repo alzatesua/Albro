@@ -28,7 +28,7 @@ class PerfilProfesional(models.Model):
     longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     nombre_local = models.CharField(max_length=150)
     descripcion = models.TextField(blank=True)
-    imagen_perfil = models.ImageField(          # ← NUEVO
+    imagen_perfil = models.ImageField(        
         upload_to='profesionales/perfiles/%Y/%m/',
         blank=True,
         null=True,
@@ -42,6 +42,8 @@ class PerfilProfesional(models.Model):
         null=True,
         blank=True,
     )
+    notificar_citas_por_correo = models.BooleanField(default=True)
+    notificar_mensajes_por_correo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 

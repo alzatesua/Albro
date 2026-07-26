@@ -166,3 +166,28 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 GOOGLE_GEOCODING_API_KEY = os.getenv('GOOGLE_GEOCODING_API_KEY')
+
+
+
+
+
+# --- Celery (reutiliza el mismo Redis de channels/cache, en otra DB) ---
+CELERY_BROKER_URL = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/2"
+CELERY_RESULT_BACKEND = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/2"
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# Demora antes de enviar el correo de "mensaje no respondido" (segundos)
+MENSAJE_NO_RESPONDIDO_DELAY = int(os.getenv('MENSAJE_NO_RESPONDIDO_DELAY', 300))  # 5 min
+
+# --- Correo (Brevo SMTP) ---
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp-relay.brevo.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Albro <no-reply@albro.com>')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')

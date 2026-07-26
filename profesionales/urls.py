@@ -25,6 +25,7 @@ from .views import (
     MiCatalogoView,
     EliminarImagenPortafolioView,
     MiCodigoQRView,
+    PreferenciasNotificacionView,
 )
 
 urlpatterns = [
@@ -55,6 +56,7 @@ urlpatterns = [
     path('mi-catalogo/', MiCatalogoView.as_view(), name='mi-catalogo'),
     path('portafolio/<int:imagen_id>/', EliminarImagenPortafolioView.as_view(), name='eliminar-imagen-portafolio'),
     path('mi-qr/', MiCodigoQRView.as_view(), name='mi-qr'),
+    path('mi-perfil/notificaciones/', PreferenciasNotificacionView.as_view(), name='preferencias-notificacion'),  
 ]
 
 if settings.DEBUG:

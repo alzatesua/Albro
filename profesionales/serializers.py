@@ -104,7 +104,8 @@ class PerfilProfesionalSerializer(serializers.ModelSerializer):
             'imagen_perfil',
             'activo', 'horarios_atencion',
             'estado', 'estado_id',
-            'departamento_id', 'municipio_id',   # ← nuevos
+            'departamento_id', 'municipio_id',   
+            'notificar_citas_por_correo', 'notificar_mensajes_por_correo',
             'fecha_creacion', 'fecha_actualizacion',
         ]
         read_only_fields = ['id', 'fecha_creacion', 'fecha_actualizacion']
@@ -434,3 +435,9 @@ class ImagenPortafolioSerializer(serializers.ModelSerializer):
             'cliente_nombre', 'cliente_apellido',
             'servicio_nombre', 'fecha_servicio',
         ]
+
+
+class PreferenciasNotificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PerfilProfesional
+        fields = ['notificar_citas_por_correo', 'notificar_mensajes_por_correo']

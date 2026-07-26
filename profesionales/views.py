@@ -34,6 +34,7 @@ import qrcode
 import io
 import base64
 from django.conf import settings
+from .serializers import PreferenciasNotificacionSerializer
 
 class RegistroProfesionalView(APIView):
     permission_classes = [IsAuthenticated]
@@ -908,3 +909,33 @@ class MiCodigoQRView(APIView):
             'url': link,
             'qr_base64': f"data:image/png;base64,{qr_base64}",
         })
+
+
+class PreferenciasNotificacionView(APIView):
+    """
+    GET   /api/profesionales/mi-perfil/notificaciones/  -> ver preferencias actuales
+    PATCH /api/profesionales/mi-perfil/notificaciones/   -> activar/desactivar
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not hasattr(request.user, 'perfil_profesional'):
+            return Response(
+                {"detail": "Solo los profesionales tienen estas preferencias."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = PreferenciasNotificacionSerializer(request.user.perfil_profesional)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        if not hasattr(request.user, 'perfil_profesional'):
+            return Response(
+                {"detail": "Solo los profesionales tienen estas preferencias."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = PreferenciasNotificacionSerializer(
+            request.user.perfil_profesional, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

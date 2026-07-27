@@ -45,6 +45,7 @@ class Cita(models.Model):
 
     # Modo de creación (por ejemplo, "profesional", "cliente", etc.)
     modo = models.CharField(max_length=20, default='profesional')
+    iniciado_en = models.DateTimeField(null=True, blank=True)
 
     # Estado de la cita
     estado = models.CharField(

@@ -107,6 +107,7 @@ class CitaSerializer(serializers.ModelSerializer):
             'hora_inicio',
             'hora_fin',
             'estado',
+            'iniciado_en',
             'fecha_creacion',
             'fecha_actualizacion',
         ]
@@ -114,6 +115,7 @@ class CitaSerializer(serializers.ModelSerializer):
             'id',
             'estado',
             'usuario',
+            'iniciado_en', 
             'fecha_creacion',
             'fecha_actualizacion',
         )

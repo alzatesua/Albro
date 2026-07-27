@@ -17,6 +17,8 @@ from rest_framework.throttling import UserRateThrottle
 from django.db import IntegrityError
 from rest_framework.exceptions import ValidationError
 from .pagination import CitasPagination 
+from django.utils import timezone
+
 
 
 class CitaViewSet(viewsets.ModelViewSet):
@@ -202,6 +204,7 @@ class CitaViewSet(viewsets.ModelViewSet):
             )
 
         cita.estado = 'completada'
+        cita.iniciado_en = None
         cita.save()
         notificar_cita(cita, tipo="completada", actor_id=request.user.id)
 
@@ -283,6 +286,38 @@ class CitaViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=True, methods=['post'], url_path='iniciar')
+    def iniciar(self, request, pk=None):
+        """
+        Marca el momento en que el profesional inicia el turno.
+        Esto es lo que persiste el cronómetro entre sesiones.
+        """
+        cita = self.get_object()
+
+        es_profesional = (
+            hasattr(request.user, 'perfil_profesional')
+            and cita.profesional_id == request.user.perfil_profesional.id
+        )
+
+        if not (request.user.is_staff or request.user.is_superuser or es_profesional):
+            return Response(
+                {"detail": "Solo el profesional asignado puede iniciar este turno."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if cita.estado != 'confirmada':
+            return Response(
+                {"detail": "Solo se puede iniciar una cita confirmada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cita.iniciado_en = timezone.now()
+        cita.save()
+        notificar_cita(cita, tipo="iniciada", actor_id=request.user.id)
+
+        serializer = self.get_serializer(cita)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 class WSTicketThrottle(UserRateThrottle):
     scope = 'ws_ticket'
 
@@ -299,3 +334,4 @@ class WSTicketView(APIView):
     def get(self, request):
         ticket = generar_ticket(request.user.id)
         return Response({"ticket": ticket, "expires_in": 15})
+

@@ -9,8 +9,10 @@ import { getCitas,
     actualizarEstadoProfesional,
     getEstadoProfesional,
     getConfiguracionSwitches,
-    actualizarConfiguracionSwitches
-         } from "../../services/api"; // ajusta la ruta según tu estructura
+    actualizarConfiguracionSwitches,
+    iniciarCita,
+    detenerCronometro
+         } from "../../services/api";
 import { useCitasSocket } from "../../hooks/useCitasSocket";
 import CitaAlertaModal from "../../components/CitaAlertaModal";
 import { useHoraServidor } from "../../hooks/useHoraServidor";
@@ -221,6 +223,13 @@ const calcularDuracionSegundos = (cita) => {
   const fin = new Date(`2000-01-01T${cita.hora_fin}`);
   return Math.max(0, Math.round((fin - inicio) / 1000));
 };
+// Segundos restantes = duración total - tiempo transcurrido desde que se inició el turno
+const calcularSegundosRestantes = (cita, ahora) => {
+  if (!cita?.iniciado_en) return 0;
+  const duracionTotal = calcularDuracionSegundos(cita);
+  const transcurrido = Math.floor((ahora - new Date(cita.iniciado_en)) / 1000);
+  return Math.max(0, duracionTotal - transcurrido);
+};
 const ConfirmarCancelacionModal = ({ cita, onConfirmar, onCerrar, procesando }) => {
   if (!cita) return null;
 
@@ -268,7 +277,6 @@ const AgendaSection = () => {
   const [totalCitas, setTotalCitas] = useState(0);
   const [tab, setTab] = useState("pendiente"); // "pendiente" | "confirmada" | "cancelada"
   const [confirmando, setConfirmando] = useState(null);
-  const [duracionCronometro, setDuracionCronometro] = useState(null);
   const [arrastrandoSobreReloj, setArrastrandoSobreReloj] = useState(false);
   const [citaAlerta, setCitaAlerta] = useState(null);
   const [procesandoAlerta, setProcesandoAlerta] = useState(false);
@@ -302,12 +310,18 @@ const AgendaSection = () => {
       setConfirmando(null);
     }
   };
-  const handleEscogerCita = (cita) => {
-    setCitas((prev) => prev.filter((c) => c.id !== cita.id));
-    setTotalCitas((c) => Math.max(0, c - 1));
-    setCitaEnCurso(cita);
-    setDuracionCronometro(calcularDuracionSegundos(cita));
+  const handleEscogerCita = async (cita) => {
+    try {
+      const citaActualizada = await iniciarCita(cita.id);
+      setCitas((prev) => prev.filter((c) => c.id !== cita.id));
+      setTotalCitas((c) => Math.max(0, c - 1));
+      setCitaEnCurso(citaActualizada); 
+    } catch (err) {
+      setToast({ tipo: "error", mensaje: err.message || "No se pudo iniciar el turno." });
+    }
   };
+
+  
   const handleCancelar = async (citaId) => {
     try {
       setCancelando(citaId);
@@ -357,23 +371,18 @@ const AgendaSection = () => {
         return fechaHoraA - fechaHoraB;
       })[0] || null;
   };
-  const handleIniciarSiguienteTurno = () => {
+  const handleIniciarSiguienteTurno = async () => {
     const siguiente = obtenerSiguienteTurno();
     if (!siguiente) return;
-
-    setCitas((prev) => prev.filter((c) => c.id !== siguiente.id));
-    setTotalCitas((c) => Math.max(0, c - 1));
-    setCitaEnCurso(siguiente);
-    setDuracionCronometro(calcularDuracionSegundos(siguiente));
+    await handleEscogerCita(siguiente); 
   };
   const handleCompletarEnCurso = async () => {
     if (!citaEnCurso) return;
     try {
       setCompletandoEnCurso(true);
-      await completarCita(citaEnCurso.id);
 
+      await completarCita(citaEnCurso.id);
       const citaCompletada = citaEnCurso;
-      setDuracionCronometro(null);
       setCitaEnCurso(null);
 
       try {
@@ -389,6 +398,21 @@ const AgendaSection = () => {
       setError(err.message || "No se pudo completar la cita.");
     } finally {
       setCompletandoEnCurso(false);
+    }
+  };
+
+  const handleCancelarCronometro = async () => {
+    if (!citaEnCurso) return;
+    try {
+      await detenerCronometro(citaEnCurso.id);
+      // La regresamos a la lista de "confirmadas" si estamos parados en ese tab
+      if (tab === "confirmada") {
+        setCitas((prev) => [citaEnCurso, ...prev]);
+        setTotalCitas((c) => c + 1);
+      }
+      setCitaEnCurso(null);
+    } catch (err) {
+      setToast({ tipo: "error", mensaje: err.message || "No se pudo detener el turno." });
     }
   };
 
@@ -485,6 +509,19 @@ const AgendaSection = () => {
   useEffect(() => {
     if (pagina > totalPaginas) setPagina(totalPaginas);
   }, [totalPaginas, pagina]);
+
+  useEffect(() => {
+    const recuperarTurnoEnCurso = async () => {
+      try {
+        const data = await getCitas({ estado: "confirmada" });
+        const enCurso = (data.results ?? data).find((c) => c.iniciado_en);
+        if (enCurso) setCitaEnCurso(enCurso);
+      } catch (err) {
+        console.error("No se pudo recuperar el turno en curso:", err);
+      }
+    };
+    recuperarTurnoEnCurso();
+  }, []);
 
   const inicio = (pagina - 1) * CITAS_POR_PAGINA;
   const citasPagina = citas.slice(inicio, inicio + CITAS_POR_PAGINA);
@@ -777,12 +814,7 @@ const AgendaSection = () => {
             setArrastrandoSobreReloj(false);
             const citaId = e.dataTransfer.getData("text/plain");
             const cita = citas.find((c) => String(c.id) === citaId);
-            if (cita) {
-              setCitas((prev) => prev.filter((c) => c.id !== cita.id));
-              setTotalCitas((c) => Math.max(0, c - 1));
-              setCitaEnCurso(cita);
-              setDuracionCronometro(calcularDuracionSegundos(cita));
-            }
+            if (cita) handleEscogerCita(cita);
           }}
         >
           {/* Lista de estados disponibles */}
@@ -818,19 +850,13 @@ const AgendaSection = () => {
             )}
           </div>
 
-          {duracionCronometro !== null ? (
+          {citaEnCurso !== null ? (
             <>
               <Cronometro
-                segundosIniciales={duracionCronometro}
+                segundosIniciales={calcularSegundosRestantes(citaEnCurso, ahora)}
                 servicio={citaEnCurso?.servicio_nombre}
-                onTerminar={() => {
-                  setDuracionCronometro(null);
-                  setCitaEnCurso(null);
-                }}
-                onCancelar={() => {
-                  setDuracionCronometro(null);
-                  setCitaEnCurso(null);
-                }}
+                onTerminar={() => setCitaEnCurso(null)}
+                onCancelar={handleCancelarCronometro}
               />
               {citaEnCurso && (
                 <button

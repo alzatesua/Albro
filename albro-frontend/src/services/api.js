@@ -382,3 +382,9 @@ export const eliminarImagenPortafolio = (imagenId) =>
 
 export const getMiCodigoQR = () =>
   request(`/profesionales/mi-qr/`);
+
+export const iniciarCita = (citaId) =>
+  request(`/citas/${citaId}/iniciar/`, { method: "POST" });
+
+export const detenerCronometro = (citaId) =>
+  request(`/citas/${citaId}/detener/`, { method: "POST" });

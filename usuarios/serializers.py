@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Usuario
+from django.contrib.auth import authenticate
+from .validaciones import validar_acceso_usuario, AccesoBloqueadoError
 
 
 class RegistroSerializer(serializers.ModelSerializer):
@@ -17,27 +19,49 @@ class RegistroSerializer(serializers.ModelSerializer):
             'rol',
         ]
 
+    def validate_rol(self, value):
+        """
+        Solo se permite auto-registrar como 'cliente' o 'profesional'.
+        Nadie puede registrarse como 'admin' desde este endpoint público.
+        """
+        roles_permitidos = ['cliente', 'profesional']
+        if value not in roles_permitidos:
+            raise serializers.ValidationError(
+                'No tienes permiso para registrarte con este rol.'
+            )
+        return value
+
     def create(self, validated_data):
         password = validated_data.pop('password')
+
+        validated_data['is_staff'] = False
+        validated_data['is_superuser'] = False
+
         usuario = Usuario(**validated_data)
         usuario.set_password(password)
         usuario.save()
         return usuario
 
-
 class UsuarioSerializer(serializers.ModelSerializer):
+    dias_restantes_trial = serializers.ReadOnlyField()
+    trial_expirado = serializers.ReadOnlyField()
+
     class Meta:
         model = Usuario
         fields = [
-            'id',
-            'email',
-            'nombre',
-            'apellido',
-            'telefono',
+            'id', 
+            'email', 
+            'nombre', 
+            'apellido', 
+            'telefono', 
             'foto',
-            'rol',
-            'primer_ingreso',
+            'rol', 
+            'primer_ingreso', 
             'fecha_registro',
+            'en_produccion', 
+            'dias_prueba',
+            'dias_restantes_trial', 
+            'trial_expirado',
         ]
         read_only_fields = ['id', 'fecha_registro']
 
@@ -53,9 +77,10 @@ class LoginSerializer(serializers.Serializer):
         try:
             usuario = Usuario.objects.get(email=email)
         except Usuario.DoesNotExist:
-            raise serializers.ValidationError({'non_field_errors': ['El usuario no existe. Por favor, regístrate.']})
+            raise serializers.ValidationError(
+                {'non_field_errors': ['El usuario no existe. Por favor, regístrate.']}
+            )
 
-        from django.contrib.auth import authenticate
         usuario_auth = authenticate(username=email, password=password)
 
         if not usuario_auth:
@@ -63,6 +88,11 @@ class LoginSerializer(serializers.Serializer):
 
         if not usuario_auth.is_active:
             raise serializers.ValidationError({'non_field_errors': ['Usuario inactivo']})
+
+        try:
+            validar_acceso_usuario(usuario_auth)
+        except AccesoBloqueadoError as e:
+            raise serializers.ValidationError({'non_field_errors': [e.mensaje]})
 
         refresh = RefreshToken.for_user(usuario_auth)
 

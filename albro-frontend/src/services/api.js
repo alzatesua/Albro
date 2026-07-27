@@ -51,6 +51,14 @@ export const loginUsuario = (email, password) =>
     body: JSON.stringify({ email, password }),
   });
 
+
+export const loginConGoogle = (code) =>         
+  request("/usuarios/google-login", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+
+
 export const registrarUsuario = (datosUsuario) =>
   request("/usuarios/registro/", {
     method: "POST",

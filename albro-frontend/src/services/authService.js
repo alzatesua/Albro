@@ -8,7 +8,13 @@ export async function loginConGoogle(googleToken) {
   const data = await res.json()
   
   if (!res.ok) {
-    const err = new Error(data.error || 'Error al iniciar sesión con Google')
+    const mensaje =
+      data?.non_field_errors?.[0] ||   
+      data?.error ||
+      data?.detail ||
+      'Error al iniciar sesión con Google'
+
+    const err = new Error(mensaje)
     err.status = res.status
     throw err
   }

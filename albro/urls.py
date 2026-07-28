@@ -30,6 +30,7 @@ urlpatterns = [
     path('api/', include('notificaciones.urls')),
     path('api/configuraciones/', include('configuraciones.urls')),
     path('api/', include('mensajeria.urls')),
+    path('gestion-x9k2/', include('panel_admin.urls')), 
 ]
 
 # Servir archivos de media en modo desarrollo

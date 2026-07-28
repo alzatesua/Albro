@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Código de acceso</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f5f7; font-family: Arial, Helvetica, sans-serif;">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; padding: 30px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#1a1a2e; padding: 24px 32px;">
+              <h1 style="margin:0; color:#ffffff; font-size:18px; letter-spacing: 0.5px;">
+                {{ nombre_empresa }} · Panel Admin
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Contenido -->
+          <tr>
+            <td style="padding: 32px 32px 8px 32px;">
+              <p style="margin:0; font-size:15px; color:#1a1a1a;">
+                Hola <strong>{{ operador.username }}</strong>,
+              </p>
+              <p style="margin:12px 0 0 0; font-size:14px; color:#555555; line-height:1.6;">
+                Solicitaste acceso al panel de administración. Usa el siguiente código para completar tu inicio de sesión:
+              </p>
+            </td>
+          </tr>
+
+          <!-- Código destacado -->
+          <tr>
+            <td style="padding: 24px 32px;" align="center">
+              <div style="background-color:#f4f5f7; border: 1px dashed #cccccc; border-radius: 8px; padding: 20px 0; text-align:center;">
+                <span style="font-size:32px; font-weight:bold; letter-spacing: 8px; color:#1a1a2e;">
+                  {{ codigo }}
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Advertencia -->
+          <tr>
+            <td style="padding: 0 32px 32px 32px;">
+              <p style="margin:0; font-size:13px; color:#888888; line-height:1.6;">
+                Este código es válido por <strong>5 minutos</strong>. Si no solicitaste este acceso, ignora este correo y considera revisar la seguridad de tu cuenta.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#f9f9fb; padding: 20px 32px; border-top: 1px solid #eeeeee;">
+              <p style="margin:0; font-size:12px; color:#aaaaaa; text-align:center;">
+                {{ nombre_empresa }} · Este es un correo automático, por favor no respondas directamente.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

@@ -81,22 +81,3 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         if not self.esta_en_trial:
             return None
         return max(self.dias_prueba - self.dias_transcurridos, 0)
-
-class Membresia(models.Model):
-    ESTADO_CHOICES = [
-        ('pendiente', 'Pendiente de pago'),
-        ('activa', 'Activa'),
-        ('vencida', 'Vencida'),
-        ('cancelada', 'Cancelada'),
-    ]
-
-    usuario = models.OneToOneField(
-        Usuario, on_delete=models.CASCADE, related_name='membresia'
-    )
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
-    pagado = models.BooleanField(default=False)
-    fecha_pago = models.DateTimeField(null=True, blank=True)
-    fecha_vencimiento = models.DateTimeField(null=True, blank=True)
-
-    def __str__(self):
-        return f'Membresía de {self.usuario.email} - {self.estado}'

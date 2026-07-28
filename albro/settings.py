@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'notificaciones', 
     'configuraciones',
     'mensajeria',
+    'panel_admin',
 ]
 
 CACHES = {
@@ -107,7 +108,8 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_THROTTLE_RATES': {
         'ws_ticket': '10/minute',
-    },
+        'panel_login': '5/min',  
+    }
 }
 
 
@@ -128,7 +130,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [(os.getenv('REDIS_HOST', 'localhost'), 6379)],
+            'hosts': [(os.getenv('REDIS_HOST', '127.0.0.1'), 6379)],
         },
     }
 }
@@ -191,3 +193,6 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Albro <no-reply@albro.com>')
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+
+PANEL_ADMIN_SECRET_KEY = os.getenv('PANEL_ADMIN_SECRET_KEY')
+IPS_PERMITIDAS_PANEL =  os.getenv('IPS_PERMITIDAS_PANEL').split(',')

@@ -1,0 +1,13 @@
+Hola {{ usuario.nombre }},
+
+Confirmamos que hemos recibido tu pago correctamente.
+
+Número de factura: {{ factura.numero_factura }}
+Fecha de emisión: {{ factura.fecha_emision|date:"d/m/Y" }}
+Plan: {{ membresia.get_plan_display }}
+Vigente hasta: {{ membresia.fecha_vencimiento|date:"d/m/Y" }}
+Total pagado: ${{ factura.total|floatformat:0 }} {{ pago.moneda }}
+
+Gracias por tu pago.
+
+{{ nombre_empresa }}

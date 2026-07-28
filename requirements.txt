@@ -31,7 +31,6 @@ pycparser==3.0
 PyJWT==2.13.0
 pyOpenSSL==26.3.0
 python-dotenv==1.2.2
-redis==8.0.1
 requests==2.34.2
 service-identity==26.1.0
 sqlparse==0.5.5
@@ -43,3 +42,7 @@ urllib3==2.7.0
 zope.interface==8.5
 celery
 qrcode[pil]
+redis==5.0.1
+channels_redis==4.3.0
+channels==4.3.2
+daphne==4.2.2

@@ -1,0 +1,9 @@
+Hola {{ operador.username }},
+
+Solicitaste acceso al panel de administración.
+
+Tu código de acceso es: {{ codigo }}
+
+Este código es válido por 5 minutos. Si no solicitaste este acceso, ignora este correo.
+
+{{ nombre_empresa }}

@@ -21,7 +21,15 @@ pip freeze > requirements.txt
 
 
 
+------------------- MANEJO DE PAGOS MANUALES -------------------
+actualmente
+python manage.py registrar_pago test@gmail.com 50000
 
+CON PLAN ANUAL
+python manage.py registrar_pago test@gmail.com 480000 --plan anual
+
+Con referencia de la transferencia (ej. número de comprobante):
+python manage.py registrar_pago test@gmail.com 50000 --referencia "BANCOLOMBIA-88213"
 
 
 

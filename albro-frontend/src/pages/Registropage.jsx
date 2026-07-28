@@ -234,6 +234,18 @@ export default function RegistroPage() {
               </button>
             </form>
 
+            <p className="mt-4 text-center text-xs text-white/30 leading-relaxed">
+              Al registrarte aceptas los{" "}
+              <Link to="/terminos" className="text-white/70 font-medium hover:text-white transition-colors underline-offset-2 hover:underline">
+                Términos y Condiciones
+              </Link>{" "}
+              y la{" "}
+              <Link to="/terminos" className="text-white/70 font-medium hover:text-white transition-colors underline-offset-2 hover:underline">
+                Política de Privacidad
+              </Link>{" "}
+              de Albro.
+            </p>
+
             <p className="mt-6 text-center text-xs text-white/30">
               ¿Ya tienes cuenta?{" "}
               <Link to="/login" className="text-white/70 font-medium hover:text-white transition-colors">

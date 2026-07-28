@@ -5,6 +5,7 @@ import LoginPage from "@/pages/LoginPage";
 import Registropage from "@/pages/Registropage";
 import DashboardPage from "@/pages/DashboardPage";
 import AgendarProfesionalPage from "@/pages/AgendarProfesionalPage";
+import TerminosPrivacidadPage from "@/pages/TerminosPrivacidadPage";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registrarme" element={<Registropage />} />
+          <Route path="/terminos" element={<TerminosPrivacidadPage />} />
           <Route
             path="/dashboard"
             element={

@@ -1,5 +1,3 @@
-# panel_admin/views.py
-import pyotp  # ya no se usa para esto, puedes quitarlo si no lo usas en otro lado
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny

@@ -36,6 +36,7 @@ const LoginPage = () => {
   const [verPassword, setVerPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+  const [requierePago, setRequierePago] = useState(false);
   const [dark, setDark] = useState(
     () => localStorage.getItem("theme") === "dark"
   );
@@ -54,6 +55,7 @@ const LoginPage = () => {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setError("");
+    setRequierePago(false); 
   };
 
   const handleSubmit = async (e) => {
@@ -64,6 +66,7 @@ const LoginPage = () => {
     }
     setCargando(true);
     setError("");
+    setRequierePago(false); // ← nuevo
     try {
       const datos = await loginUsuario(form.email, form.password);
       guardarSesion(datos);
@@ -77,6 +80,7 @@ const LoginPage = () => {
 
     } catch (err) {
       setError(err.message || "Credenciales incorrectas. Intenta de nuevo.");
+      setRequierePago(err.requierePago === true); // ← nuevo
     } finally {
       setCargando(false);
     }
@@ -145,6 +149,19 @@ const LoginPage = () => {
                   <AlertDescription className="text-sm text-red-200">
                     {error}
                   </AlertDescription>
+
+                  {requierePago && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/pago-membresia")}
+                      className="mt-3 w-full h-9 rounded-lg text-sm font-semibold transition-all active:scale-95"
+                      style={{ background: "rgba(255,255,255,0.95)", color: "#111" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,1)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.95)")}
+                    >
+                      Ir a pagar mi membresía
+                    </button>
+                  )}
                 </Alert>
               )}
 

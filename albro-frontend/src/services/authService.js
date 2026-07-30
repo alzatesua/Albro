@@ -9,6 +9,7 @@ export async function loginConGoogle(googleToken) {
   
   if (!res.ok) {
     const mensaje =
+      data?.detalle ||                 
       data?.non_field_errors?.[0] ||   
       data?.error ||
       data?.detail ||
@@ -16,6 +17,7 @@ export async function loginConGoogle(googleToken) {
 
     const err = new Error(mensaje)
     err.status = res.status
+    err.requierePago = data?.requiere_pago === true   
     throw err
   }
 

@@ -6,6 +6,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import Usuario
 from .serializers import RegistroSerializer, UsuarioSerializer, LoginSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+from .validaciones import  AccesoBloqueadoError
 
 
 class RegistroView(APIView):
@@ -27,9 +29,15 @@ class LoginView(APIView):
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            return Response(serializer.validated_data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            if serializer.is_valid():
+                return Response(serializer.validated_data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except AccesoBloqueadoError as e:
+            return Response(
+                {'detalle': e.mensaje, 'requiere_pago': True},  # ← 'detalle' en vez de 'non_field_errors'
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
 
 class PerfilView(APIView):
@@ -62,3 +70,6 @@ class MarcarPrimerIngresoView(APIView):
         request.user.primer_ingreso = False
         request.user.save()
         return Response({'mensaje': 'Primer ingreso marcado como completado'})
+
+
+    

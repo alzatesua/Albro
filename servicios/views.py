@@ -1,11 +1,11 @@
 from django.db.models import Count
 from rest_framework import status
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import CategoriaServicio, Servicio, ServicioProfesional
+from .models import CategoriaServicio, Servicio, ServicioProfesional, Membresia, Pago, Usuario
 from profesionales.models import PerfilProfesional
 from .serializers import (
     AsociarServicioCategoriaSerializer,
@@ -14,8 +14,12 @@ from .serializers import (
     ServicioSerializer,
     ProfesionalListaSerializer,
     ServicioOfrecidoSerializer, 
-    AsignarServicioSerializer
+    AsignarServicioSerializer,
+    SolicitarPagoSerializer, 
+    PagoSerializer
 )
+import uuid
+from django.utils import timezone
 
 class CategoriaServicioListCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -246,3 +250,38 @@ class MisServiciosView(APIView):
             )
 
         return Response({'mensaje': 'Servicio removido de tu perfil'})
+
+
+
+class SolicitarPagoView(APIView):
+    permission_classes = [AllowAny]  # ← antes era IsAuthenticated
+
+    def post(self, request):
+        serializer = SolicitarPagoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
+
+        try:
+            usuario = Usuario.objects.get(email=datos['email_cuenta'])
+        except Usuario.DoesNotExist:
+            return Response({'detalle': 'No existe una cuenta con ese correo.'}, status=404)
+
+        membresia, _ = Membresia.objects.update_or_create(
+            usuario=usuario,
+            defaults={'plan': datos['plan'], 'estado': 'pendiente'},
+        )
+
+        pago = Pago.objects.create(
+            membresia=membresia,
+            monto=datos['monto'],
+            medio_pago=datos['medio_pago'],
+            correo_pagador=datos['correo_pagador'],
+            comprobante=datos.get('comprobante'),
+            referencia_interna=f'PAG-{timezone.now().year}-{uuid.uuid4().hex[:8].upper()}',
+        )
+
+        return Response(
+            {'mensaje': 'Solicitud de pago registrada, pendiente de verificación',
+             'pago': PagoSerializer(pago).data},
+            status=status.HTTP_201_CREATED,
+        )

@@ -7,6 +7,7 @@ from .views import (
     ServicioListCreateView,
     ProfesionalesView,
     MisServiciosView,
+    SolicitarPagoView,
 )
 
 urlpatterns = [
@@ -20,4 +21,5 @@ urlpatterns = [
     path('servicios/', ServicioListCreateView.as_view(), name='servicios'),
     path('profesionales/', ProfesionalesView.as_view(), name='profesionales-lista'),
     path('mis-servicios/', MisServiciosView.as_view(), name='mis-servicios'),
+    path('membresia/pagar/', SolicitarPagoView.as_view(), name='solicitar-pago'),
 ]

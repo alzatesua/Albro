@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .models import CategoriaServicio, Servicio
 from profesionales.models import PerfilProfesional
 from profesionales.serializers import EstadoAtencionSerializer
-from .models import ServicioProfesional
+from .models import ServicioProfesional, Pago, Membresia
 
 
 class ServicioSerializer(serializers.ModelSerializer):
@@ -159,3 +159,26 @@ class AsignarServicioSerializer(serializers.Serializer):
         if not Servicio.objects.filter(pk=value, activo=True).exists():
             raise serializers.ValidationError('El servicio no existe o no esta activo.')
         return value
+
+
+
+class SolicitarPagoSerializer(serializers.Serializer):
+    email_cuenta = serializers.EmailField()  
+    plan = serializers.ChoiceField(choices=Membresia.PLAN_CHOICES)
+    medio_pago = serializers.ChoiceField(choices=Pago.MEDIO_PAGO_CHOICES)
+    correo_pagador = serializers.EmailField()
+    monto = serializers.DecimalField(max_digits=10, decimal_places=2)
+    comprobante = serializers.FileField(required=False)
+
+
+class PagoSerializer(serializers.ModelSerializer):
+    plan = serializers.CharField(source='membresia.plan', read_only=True)
+    usuario_email = serializers.EmailField(source='membresia.usuario.email', read_only=True)
+
+    class Meta:
+        model = Pago
+        fields = [
+            'id', 'plan', 'usuario_email', 'monto', 'moneda', 'medio_pago',
+            'correo_pagador', 'estado', 'referencia_interna', 'comprobante',
+            'fecha_creacion', 'fecha_confirmacion',
+        ]

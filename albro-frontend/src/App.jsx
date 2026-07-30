@@ -6,6 +6,7 @@ import Registropage from "@/pages/Registropage";
 import DashboardPage from "@/pages/DashboardPage";
 import AgendarProfesionalPage from "@/pages/AgendarProfesionalPage";
 import TerminosPrivacidadPage from "@/pages/TerminosPrivacidadPage";
+import FormaPagoPage from "@/pages/Formulariopagomembresia";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registrarme" element={<Registropage />} />
           <Route path="/terminos" element={<TerminosPrivacidadPage />} />
+          <Route path="/pago-membresia" element={<FormaPagoPage />} />
           <Route
             path="/dashboard"
             element={

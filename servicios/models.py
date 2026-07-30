@@ -122,14 +122,23 @@ class Pago(models.Model):
         ('fallido', 'Fallido'),
         ('reembolsado', 'Reembolsado'),
     ]
+    MEDIO_PAGO_CHOICES = [
+        ('nequi', 'Nequi'),
+        ('llave', 'Llave'),
+    ]
 
     membresia = models.ForeignKey(Membresia, on_delete=models.CASCADE, related_name='pagos')
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     moneda = models.CharField(max_length=10, default='COP')
+    medio_pago = models.CharField(max_length=20, choices=MEDIO_PAGO_CHOICES)
+    correo_pagador = models.EmailField(
+        help_text='Correo desde el que se reportó/hizo la transferencia, para verificar quién pagó.'
+    )
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
-    pasarela = models.CharField(max_length=20, default='wompi')
+    pasarela = models.CharField(max_length=20, default='manual')
     referencia_interna = models.CharField(max_length=100, unique=True)
     referencia_pasarela = models.CharField(max_length=150, blank=True, null=True)
+    comprobante = models.FileField(upload_to='comprobantes_pago/', blank=True, null=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_confirmacion = models.DateTimeField(null=True, blank=True)
 

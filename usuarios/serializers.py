@@ -89,10 +89,7 @@ class LoginSerializer(serializers.Serializer):
         if not usuario_auth.is_active:
             raise serializers.ValidationError({'non_field_errors': ['Usuario inactivo']})
 
-        try:
-            validar_acceso_usuario(usuario_auth)
-        except AccesoBloqueadoError as e:
-            raise serializers.ValidationError({'non_field_errors': [e.mensaje]})
+        validar_acceso_usuario(usuario_auth)  # si el trial venció o falta pago, esto lanza AccesoBloqueadoError
 
         refresh = RefreshToken.for_user(usuario_auth)
 

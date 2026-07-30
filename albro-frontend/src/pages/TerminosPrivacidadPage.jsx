@@ -273,7 +273,7 @@ export default function TerminosPrivacidadPage() {
       {/* Barra de progreso de lectura */}
       <div className="fixed top-0 left-0 right-0 z-50 h-[3px] bg-black/10">
         <div
-          className="h-full bg-[#AD8434] transition-[width] duration-150 ease-out"
+          className="h-full bg-black transition-[width] duration-150 ease-out"
           style={{ width: `${progreso}%` }}
         />
       </div>
@@ -281,10 +281,10 @@ export default function TerminosPrivacidadPage() {
       {/* ── HERO ── */}
       <div className="relative overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center scale-105"
-          style={{ backgroundImage: `url(${fondoLogin})`, filter: "blur(6px) saturate(90%)" }}
+          className="absolute inset-0 bg-cover bg-center scale-105 grayscale"
+          style={{ backgroundImage: `url(${fondoLogin})`, filter: "blur(6px) saturate(0%)" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0E1526]/92 via-[#0E1526]/88 to-[#0E1526]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/92 via-black/88 to-black" />
         <div
           className="absolute inset-0 opacity-[0.05] mix-blend-overlay"
           style={{
@@ -297,8 +297,8 @@ export default function TerminosPrivacidadPage() {
           {/* Header */}
           <header className="w-full px-6 py-5 flex items-center justify-between border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-[#AD8434]/15 border border-[#D8B463]/40 flex items-center justify-center">
-                <Shield className="text-[#D8B463]" size={18} />
+              <div className="size-10 rounded-full bg-white/10 border border-white/30 flex items-center justify-center">
+                <Shield className="text-white" size={18} />
               </div>
               <div>
                 <p className="text-white font-display font-medium text-base tracking-tight">Albro</p>
@@ -330,7 +330,7 @@ export default function TerminosPrivacidadPage() {
           {menuAbierto && (
             <nav
               id="indice-movil"
-              className="lg:hidden mx-6 mb-2 rounded-xl border border-white/10 bg-[#0E1526]/95 backdrop-blur-md max-h-[60vh] overflow-y-auto"
+              className="lg:hidden mx-6 mb-2 rounded-xl border border-white/10 bg-black/95 backdrop-blur-md max-h-[60vh] overflow-y-auto"
             >
               {SECCIONES.map((s) => {
                 const { numero, etiqueta } = partirTitulo(s.titulo);
@@ -343,7 +343,7 @@ export default function TerminosPrivacidadPage() {
                       activo ? "text-white bg-white/[0.06]" : "text-white/55"
                     }`}
                   >
-                    <span className="font-display text-[#D8B463] text-xs w-4 shrink-0">{numero}</span>
+                    <span className="font-display text-white/70 text-xs w-4 shrink-0">{numero}</span>
                     <span className="truncate">{etiqueta}</span>
                   </button>
                 );
@@ -354,13 +354,10 @@ export default function TerminosPrivacidadPage() {
           {/* Bloque de presentación */}
           <section className="w-full px-6 pt-10 pb-16 text-center">
             <div className="max-w-2xl mx-auto">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-body font-medium text-[#E7CD8F] bg-[#AD8434]/10 border border-[#D8B463]/30">
-                <Lock size={11} />
-                Documento vigente · Actualizado el {new Date().toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })}
-              </span>
+            
               <h1 className="mt-6 text-3xl sm:text-[2.6rem] font-display font-medium text-white tracking-tight leading-[1.1]">
                 Términos y Condiciones
-                <span className="block text-[#D8B463]">Política de Privacidad</span>
+                <span className="block text-white/70">Política de Privacidad</span>
               </h1>
               <p className="mt-4 text-white/50 font-body text-sm sm:text-[15px] leading-relaxed">
                 Estos términos regulan el uso de la plataforma Albro y describimos cómo tratamos tu
@@ -376,7 +373,7 @@ export default function TerminosPrivacidadPage() {
         {/* Índice lateral tipo "expediente" (sticky, solo desktop) */}
         <aside className="hidden lg:block">
           <div className="sticky top-6 rounded-2xl border border-black/[0.08] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_24px_-12px_rgba(0,0,0,0.12)] overflow-hidden">
-            <p className="px-5 pt-5 pb-2 text-[11px] font-body font-semibold uppercase tracking-widest text-[#8A6A2A]">
+            <p className="px-5 pt-5 pb-2 text-[11px] font-body font-semibold uppercase tracking-widest text-black/60">
               Índice
             </p>
             <nav className="pb-3 max-h-[72vh] overflow-y-auto">
@@ -391,12 +388,12 @@ export default function TerminosPrivacidadPage() {
                   >
                     <span
                       className={`mt-0.5 h-4 w-[3px] rounded-full shrink-0 transition-colors ${
-                        activo ? "bg-[#AD8434]" : "bg-transparent"
+                        activo ? "bg-black" : "bg-transparent"
                       }`}
                     />
                     <span
                       className={`font-display text-xs mt-[1px] shrink-0 w-4 ${
-                        activo ? "text-[#AD8434]" : "text-black/25"
+                        activo ? "text-black" : "text-black/25"
                       }`}
                     >
                       {numero}
@@ -419,20 +416,16 @@ export default function TerminosPrivacidadPage() {
         <article className="rounded-2xl bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_20px_40px_-20px_rgba(0,0,0,0.15)] px-6 sm:px-12 py-10 sm:py-14">
           <div className="divide-y divide-black/[0.06]">
             {SECCIONES.map((s) => {
-              const Icono = s.icono;
               const { numero, etiqueta } = partirTitulo(s.titulo);
               return (
                 <section key={s.id} id={s.id} className="scroll-mt-24 py-8 first:pt-0 last:pb-0">
                   <div className="flex items-start gap-4 mb-4">
                     {numero && (
-                      <span className="font-display text-3xl sm:text-4xl text-[#E9DAB4] leading-none select-none shrink-0">
+                      <span className="font-display text-3xl sm:text-4xl text-black/10 leading-none select-none shrink-0">
                         {numero}
                       </span>
                     )}
-                    <div className="flex items-center gap-2.5 pt-1">
-                      <div className="size-8 rounded-lg bg-[#AD8434]/10 border border-[#AD8434]/20 flex items-center justify-center shrink-0">
-                        <Icono size={15} className="text-[#8A6A2A]" />
-                      </div>
+                    <div className="flex items-center pt-1">
                       <h2 className="text-lg sm:text-xl font-display font-medium text-[#1B1E27] tracking-tight">
                         {etiqueta}
                       </h2>
@@ -450,7 +443,7 @@ export default function TerminosPrivacidadPage() {
                       <ul className="space-y-3 mt-1">
                         {s.lista.map(([titulo, texto], i) => (
                           <li key={i} className="flex gap-3 text-sm sm:text-[15px] font-body text-[#3A3D46] leading-relaxed">
-                            <span className="mt-2 size-1.5 rounded-full bg-[#AD8434] shrink-0" />
+                            <span className="mt-2 size-1.5 rounded-full bg-black shrink-0" />
                             <span>
                               <span className="text-[#1B1E27] font-medium">{titulo}:</span>{" "}
                               {texto}
@@ -465,19 +458,14 @@ export default function TerminosPrivacidadPage() {
             })}
           </div>
 
-          <div className="pt-6 mt-2 border-t border-black/[0.08]">
-            <p className="text-xs font-body text-black/35">
-              © {new Date().getFullYear()} Albro. Este documento se ofrece con fines informativos y
-              constituye el marco normativo de uso de la plataforma. Conserva una copia para tus registros.
-            </p>
-          </div>
+         
         </article>
       </div>
 
       {/* Volver arriba */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className={`fixed bottom-6 right-6 z-40 size-11 rounded-full bg-[#0E1526] border border-[#D8B463]/30 text-[#D8B463] flex items-center justify-center shadow-lg transition-all ${
+        className={`fixed bottom-6 right-6 z-40 size-11 rounded-full bg-black border border-white/30 text-white flex items-center justify-center shadow-lg transition-all ${
           mostrarArriba ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
         }`}
         aria-label="Volver arriba"

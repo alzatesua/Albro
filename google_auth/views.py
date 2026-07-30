@@ -48,7 +48,7 @@ def google_login(request):
     try:
         validar_acceso_usuario(usuario)
     except AccesoBloqueadoError as e:
-        return Response({'non_field_errors': [e.mensaje]}, status=403)
+        return Response({'detalle': e.mensaje, 'requiere_pago': True}, status=403) 
 
     refresh = RefreshToken.for_user(usuario)
     return Response({

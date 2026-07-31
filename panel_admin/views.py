@@ -122,3 +122,28 @@ class ConfirmarPagoPanelView(APIView):
             'mensaje': 'Pago confirmado y factura enviada',
             'factura': factura.numero_factura,
         })
+
+class PagosPendientesPanelView(APIView):
+    """
+    GET /gestion-x9k2/pagos-pendientes/
+    Lista los pagos con estado 'pendiente' por verificar.
+    Requiere token de operador del panel admin (login con OTP).
+    """
+    authentication_classes = [PanelAdminAuthentication]
+    permission_classes = [EsOperadorPanel]
+
+    def get(self, request):
+        from servicios.models import Pago
+        from servicios.serializers import PagoSerializer
+
+        pagos = (
+            Pago.objects
+            .filter(estado='pendiente')
+            .select_related('membresia', 'membresia__usuario')
+        )
+
+        serializer = PagoSerializer(pagos, many=True)
+        return Response({
+            'total': pagos.count(),
+            'pagos': serializer.data,
+        })

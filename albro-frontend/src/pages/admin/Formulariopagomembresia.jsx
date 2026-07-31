@@ -233,7 +233,7 @@ export default function FormularioPagoMembresia() {
               <div className="pl-0 sm:pl-[3.25rem] space-y-4">
                 <div>
                     <label htmlFor="correo_pagador" className="block text-xs font-body font-medium text-black/60 mb-1.5">
-                        Correo desde el que hiciste la transferencia
+                        Correo de tu cuenta
                     </label>
                     <input
                         id="correo_pagador"
@@ -242,6 +242,21 @@ export default function FormularioPagoMembresia() {
                         value={correoPagador}
                         onChange={(e) => setCorreoPagador(e.target.value)}
                         placeholder="tucorreo@ejemplo.com"
+                        className="w-full rounded-lg border border-black/15 px-4 py-2.5 text-sm font-body text-[#1B1E27] placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="email_cuenta" className="block text-xs font-body font-medium text-black/60 mb-1.5">
+                        Confirmar correo
+                    </label>
+                    <input
+                        id="email_cuenta"
+                        type="email"
+                        required
+                        value={emailCuenta}
+                        onChange={(e) => setEmailCuenta(e.target.value)}
+                        placeholder="tucuenta@ejemplo.com"
                         className="w-full rounded-lg border border-black/15 px-4 py-2.5 text-sm font-body text-[#1B1E27] placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
                     />
                 </div>

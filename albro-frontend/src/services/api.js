@@ -1,4 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8006/api";
+const PANEL_BASE_URL = import.meta.env.VITE_API_URL_PANEL || "http://localhost:8006";
+
+
 
 // Helper para headers con token
 const authHeaders = () => {
@@ -396,3 +399,83 @@ export const iniciarCita = (citaId) =>
 
 export const detenerCronometro = (citaId) =>
   request(`/citas/${citaId}/detener/`, { method: "POST" });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ─── Panel Admin (login OTP) ───────────────────────────────────────────────
+
+const panelAuthHeaders = () => {
+  const token = localStorage.getItem("panel_access_token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+const panelRequest = async (endpoint, options = {}) => {
+  const res = await fetch(`${PANEL_BASE_URL}${endpoint}`, {
+    headers: panelAuthHeaders(),
+    ...options,
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem("panel_access_token");
+      window.location.href = "/gestion-x9k2/login";
+    } else {
+      const mensaje = data?.error || data?.detail || "Error inesperado";
+      const err = new Error(mensaje);
+      err.status = res.status;
+      throw err;
+    }
+  }
+
+  return data;
+};
+
+export const solicitarCodigoAdmin = (username, password) =>
+  panelRequest("/gestion-x9k2/solicitar-codigo/", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+
+export const verificarCodigoAdmin = (username, codigo_otp) =>
+  panelRequest("/gestion-x9k2/verificar-codigo/", {
+    method: "POST",
+    body: JSON.stringify({ username, codigo_otp }),
+  }).then((data) => {
+    localStorage.setItem("panel_access_token", data.access);
+    return data;
+  });
+
+export const logoutAdmin = () => {
+  localStorage.removeItem("panel_access_token");
+};
+
+export const getPagosPendientesAdmin = () =>
+  panelRequest("/gestion-x9k2/pagos-pendientes/");
+
+export const confirmarPagoPendienteAdmin = (pagoId) =>
+  panelRequest(`/gestion-x9k2/pagos/${pagoId}/confirmar/`, {
+    method: "POST",
+  });

@@ -431,6 +431,8 @@ const panelAuthHeaders = () => {
 };
 
 const panelRequest = async (endpoint, options = {}) => {
+  const tokenPrevio = localStorage.getItem("panel_access_token");
+
   const res = await fetch(`${PANEL_BASE_URL}${endpoint}`, {
     headers: panelAuthHeaders(),
     ...options,
@@ -439,8 +441,11 @@ const panelRequest = async (endpoint, options = {}) => {
   const data = await res.json();
 
   if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem("panel_access_token");
+    const esErrorDeSesion =
+      (res.status === 401 || res.status === 403) && Boolean(tokenPrevio);
+
+    if (esErrorDeSesion) {
+      logoutAdmin();
       window.location.href = "/gestion-x9k2/login";
     } else {
       const mensaje = data?.error || data?.detail || "Error inesperado";
@@ -479,3 +484,12 @@ export const confirmarPagoPendienteAdmin = (pagoId) =>
   panelRequest(`/gestion-x9k2/pagos/${pagoId}/confirmar/`, {
     method: "POST",
   });
+
+export const verificarPagoAdmin = ({ email, monto, plan, pago_id }) =>
+  panelRequest("/gestion-x9k2/confirmar-pago/", {
+    method: "POST",
+    body: JSON.stringify({ email, monto, plan, pago_id }),
+  });
+
+export const getPagosConfirmadosAdmin = () =>
+  panelRequest("/gestion-x9k2/pagos/exitoso/");

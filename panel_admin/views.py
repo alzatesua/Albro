@@ -92,12 +92,14 @@ class ConfirmarPagoPanelView(APIView):
 
     def post(self, request):
         from usuarios.models import Usuario
-        from servicios.utils import registrar_pago_manual
+        from servicios.models import Pago
+        from servicios.utils import registrar_pago_manual, confirmar_pago_pendiente
 
         email = request.data.get('email')
         monto = request.data.get('monto')
         plan = request.data.get('plan', 'mensual')
         referencia = request.data.get('referencia')
+        pago_id = request.data.get('pago_id')
 
         if not email or not monto:
             return Response({'error': 'email y monto son obligatorios'}, status=400)
@@ -107,9 +109,25 @@ class ConfirmarPagoPanelView(APIView):
         except Usuario.DoesNotExist:
             return Response({'error': 'Usuario no encontrado'}, status=404)
 
-        pago, factura = registrar_pago_manual(
-            usuario=usuario, monto=monto, plan=plan, referencia=referencia
-        )
+        try:
+            pago_pendiente = None
+
+            if pago_id:
+                pago_pendiente = Pago.objects.filter(id=pago_id, estado='pendiente').first()
+
+            if not pago_pendiente:
+                pago_pendiente = Pago.objects.filter(
+                    membresia__usuario=usuario, estado='pendiente'
+                ).order_by('-fecha_creacion').first()
+
+            if pago_pendiente:
+                pago, factura = confirmar_pago_pendiente(pago_pendiente)
+            else:
+                pago, factura = registrar_pago_manual(
+                    usuario=usuario, monto=monto, plan=plan, referencia=referencia
+                )
+        except ValueError as e:
+            return Response({'error': str(e)}, status=409)
 
         RegistroAuditoria.objects.create(
             operador=request.user,
@@ -145,5 +163,44 @@ class PagosPendientesPanelView(APIView):
         serializer = PagoSerializer(pagos, many=True)
         return Response({
             'total': pagos.count(),
+            'pagos': serializer.data,
+        })
+
+
+class PagosPorEstadoPanelView(APIView):
+    """
+    GET /gestion-x9k2/pagos/<estado>/
+    Lista los pagos filtrados por un estado específico.
+    Ej: /gestion-x9k2/pagos/exitoso/
+        /gestion-x9k2/pagos/rechazado/
+    Requiere token de operador del panel admin (login con OTP).
+    """
+    authentication_classes = [PanelAdminAuthentication]
+    permission_classes = [EsOperadorPanel]
+
+    ESTADOS_VALIDOS = ['pendiente', 'exitoso', 'rechazado', 'fallido', 'reembolsado']  # ajusta a tus choices reales
+
+
+    def get(self, request, estado):
+        from servicios.models import Pago
+        from servicios.serializers import PagoSerializer
+
+        if estado not in self.ESTADOS_VALIDOS:
+            return Response(
+                {'error': f'Estado inválido. Usa uno de: {", ".join(self.ESTADOS_VALIDOS)}'},
+                status=400,
+            )
+
+        pagos = (
+            Pago.objects
+            .filter(estado=estado)
+            .select_related('membresia', 'membresia__usuario')
+            .order_by('-fecha_creacion')
+        )
+
+        serializer = PagoSerializer(pagos, many=True)
+        return Response({
+            'total': pagos.count(),
+            'estado': estado,
             'pagos': serializer.data,
         })

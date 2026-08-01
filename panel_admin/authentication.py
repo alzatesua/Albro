@@ -43,3 +43,6 @@ class PanelAdminAuthentication(BaseAuthentication):
             raise AuthenticationFailed('Operador no encontrado o inactivo')
 
         return (operador, token)
+
+    def authenticate_header(self, request):
+        return 'Bearer'

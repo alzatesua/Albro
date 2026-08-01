@@ -10,7 +10,10 @@ import AgendarProfesionalPage from "@/pages/AgendarProfesionalPage";
 import TerminosPrivacidadPage from "@/pages/TerminosPrivacidadPage";
 import FormaPagoPage from "@/pages/admin/Formulariopagomembresia";
 import AdminLoginPage from "@/pages/admin/AdminLoginPage";
+import AdminLayout from "@/pages/admin/Adminlayout";
 import PagosPendientesPage from "@/pages/admin/PagosPendientesPage";
+import PagosConfirmadosPage from "@/pages/admin/PagosConfirmadosPage";
+import MetricasPage from "./pages/admin/Metricaspage";
 
 function App() {
   return (
@@ -38,14 +41,21 @@ function App() {
               <AuthProviderAdmin>
                 <Routes>
                   <Route path="login" element={<AdminLoginPage />} />
+
+                  {/* Rutas protegidas, envueltas con el sidebar */}
                   <Route
-                    path="pagos-pendientes"
                     element={
                       <RutaProtegidaAdmin>
-                        <PagosPendientesPage />
+                        <AdminLayout />
                       </RutaProtegidaAdmin>
                     }
-                  />
+                  >
+                    <Route path="pagos-pendientes" element={<PagosPendientesPage />} />
+                    <Route path="pagos-confirmados" element={<PagosConfirmadosPage />} />
+                    <Route path="metricas"element={<MetricasPage />} />
+                  </Route>
+
+                  <Route path="*" element={<Navigate to="pagos-pendientes" replace />} />
                 </Routes>
               </AuthProviderAdmin>
             }

@@ -10,6 +10,7 @@ from django.core.mail import EmailMultiAlternatives
 import io
 from django.core.files.base import ContentFile
 from weasyprint import HTML
+from django.db import IntegrityError, transaction
 
 
 def registrar_pago_manual(usuario, monto, plan='mensual', referencia=None):
@@ -22,15 +23,19 @@ def registrar_pago_manual(usuario, monto, plan='mensual', referencia=None):
     if not referencia:
         referencia = f'TRANSF-{uuid.uuid4().hex[:8].upper()}'
 
-    pago = Pago.objects.create(
-        membresia=membresia,
-        monto=monto,
-        estado='exitoso',
-        pasarela='manual',
-        referencia_interna=referencia,
-        referencia_pasarela=referencia,
-        fecha_confirmacion=timezone.now(),
-    )
+    try:
+        with transaction.atomic():
+            pago = Pago.objects.create(
+                membresia=membresia,
+                monto=monto,
+                estado='exitoso',
+                pasarela='manual',
+                referencia_interna=referencia,
+                referencia_pasarela=referencia,
+                fecha_confirmacion=timezone.now(),
+            )
+    except IntegrityError:
+        raise ValueError(f'La referencia "{referencia}" ya fue registrada anteriormente.')
 
     factura = Factura.objects.create(
         pago=pago,
@@ -115,3 +120,42 @@ def generar_pdf_factura(factura):
     )
 
     return factura
+
+
+def confirmar_pago_pendiente(pago):
+    """
+    Confirma un Pago que ya existe en estado 'pendiente' (reportado por el usuario),
+    en vez de crear uno nuevo. Genera factura y activa la membresía.
+    """
+    if pago.estado == 'exitoso':
+        raise ValueError('Este pago ya fue confirmado anteriormente.')
+
+    membresia = pago.membresia
+    usuario = membresia.usuario
+
+    pago.estado = 'exitoso'
+    pago.fecha_confirmacion = timezone.now()
+    pago.save(update_fields=['estado', 'fecha_confirmacion'])
+
+    factura = Factura.objects.create(
+        pago=pago,
+        razon_social=f'{usuario.nombre} {usuario.apellido}',
+        subtotal=pago.monto,
+        impuestos=0,
+        total=pago.monto,
+    )
+
+    dias = 365 if membresia.plan == 'anual' else 30
+    membresia.pagado = True
+    membresia.estado = 'activa'
+    membresia.fecha_pago = timezone.now()
+    membresia.fecha_vencimiento = timezone.now() + relativedelta(days=dias)
+    membresia.save()
+
+    usuario.en_produccion = True
+    usuario.save()
+
+    generar_pdf_factura(factura)
+    enviar_factura_por_correo(factura)
+
+    return pago, factura

@@ -1,19 +1,26 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import ModalCodigoQR from "@/components/ModalCodigoQR";
-import { getMiCatalogo, eliminarImagenPortafolio } from "@/services/api";
-import { Star, Image as ImageIcon, MapPin, CircleDot, Trash2, Loader2, AlertTriangle, X, Clock, QrCode } from "lucide-react";
+import { getMiCatalogo, eliminarImagenPortafolio, subirImagenesPortafolio } from "@/services/api";
+import { Star, Image as ImageIcon, MapPin, CircleDot, Trash2, Loader2, AlertTriangle, X, Clock, QrCode, Plus, Camera } from "lucide-react";
 import Portal from "@/components/ui/Portal";
+import ModalCamara from "@/components/ModalCamara";
 
 const MiCatalogoSection = () => {
   const [catalogo, setCatalogo] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
-  // ── Modal de confirmación para eliminar imagen ────────────────────────
-  const [imagenAEliminar, setImagenAEliminar] = useState(null); // la imagen completa, no solo el id
+  const [imagenAEliminar, setImagenAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState(null);
   const [qrAbierto, setQrAbierto] = useState(false);
+
+  // ── Subida de imágenes al portafolio ──────────────────────────────────
+  const inputArchivoRef = useRef(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const [errorSubida, setErrorSubida] = useState(null);
+  const [previasSubiendo, setPreviasSubiendo] = useState([]); // [{ id, url }]
+  const [camaraAbierta, setCamaraAbierta] = useState(false);
 
 
   const cargarCatalogo = useCallback(async () => {
@@ -45,6 +52,51 @@ const MiCatalogoSection = () => {
     setErrorEliminar(null);
   };
 
+  const subirArchivos = async (archivos) => {
+    setErrorSubida(null);
+    setSubiendo(true);
+
+    const previas = archivos.map((archivo) => ({
+      id: `temp-${archivo.name}-${archivo.lastModified}`,
+      url: URL.createObjectURL(archivo),
+    }));
+    setPreviasSubiendo(previas);
+
+    try {
+      const data = await subirImagenesPortafolio(archivos);
+
+      if (data.imagenes?.length) {
+        setCatalogo((prev) => ({
+          ...prev,
+          portafolio: [...data.imagenes, ...prev.portafolio],
+        }));
+      }
+
+      if (data.errores?.length) {
+        setErrorSubida(
+          `${data.errores.length} imagen(es) no se pudieron subir. Intenta de nuevo.`
+        );
+      }
+    } catch (err) {
+      console.error("Error subiendo imágenes:", err);
+      setErrorSubida(err.message || "No se pudieron subir las imágenes.");
+    } finally {
+      previas.forEach((p) => URL.revokeObjectURL(p.url));
+      setPreviasSubiendo([]);
+      setSubiendo(false);
+    }
+  };
+
+  const manejarArchivosSeleccionados = (event) => {
+    const archivos = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (archivos.length > 0) subirArchivos(archivos);
+  };
+
+  const manejarFotoCapturada = (archivo) => {
+    subirArchivos([archivo]);
+  };
+
   const confirmarEliminarImagen = async () => {
     if (!imagenAEliminar) return;
 
@@ -64,6 +116,10 @@ const MiCatalogoSection = () => {
       setEliminando(false);
     }
   };
+
+
+
+  
 
   if (cargando) {
     return (
@@ -200,17 +256,71 @@ const MiCatalogoSection = () => {
 
       {/* ── Portafolio ── */}
       <div>
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-          Portafolio
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
+            Portafolio
+          </h3>
 
-        {portafolio.length === 0 ? (
-          <div className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 flex flex-col items-center gap-2">
-            <ImageIcon size={20} className="text-zinc-300 dark:text-zinc-600" />
-            Aún no has subido imágenes a tu portafolio.
+          {/* Inputs ocultos: uno abre galería, el otro fuerza la cámara en móvil */}
+          {/* Input oculto para elegir imágenes de la galería */}
+          <input
+            ref={inputArchivoRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={manejarArchivosSeleccionados}
+          />
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCamaraAbierta(true)}
+              disabled={subiendo}
+              className="text-xs font-medium px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Camera size={14} />
+              Tomar foto
+            </button>
+            <button
+              onClick={() => inputArchivoRef.current?.click()}
+              disabled={subiendo}
+              className="text-xs font-medium px-3 py-1.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {subiendo ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              {subiendo ? "Subiendo..." : "Agregar imágenes"}
+            </button>
           </div>
+        </div>
+
+        {errorSubida && (
+          <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2 mb-3">
+            {errorSubida}
+          </p>
+        )}
+
+        {portafolio.length === 0 && previasSubiendo.length === 0 ? (
+          <button
+            onClick={() => inputArchivoRef.current?.click()}
+            className="w-full py-8 text-center text-sm text-zinc-400 dark:text-zinc-500 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 flex flex-col items-center gap-2 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-500 transition-colors"
+          >
+            <ImageIcon size={20} className="text-zinc-300 dark:text-zinc-600" />
+            Aún no has subido imágenes a tu portafolio. Toca para agregar.
+          </button>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+            {/* Previews en proceso de subida */}
+            {previasSubiendo.map((p) => (
+              <div
+                key={p.id}
+                className="relative aspect-square rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800"
+              >
+                <img src={p.url} alt="Subiendo..." className="w-full h-full object-cover opacity-50" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <Loader2 size={18} className="animate-spin text-white" />
+                </div>
+              </div>
+            ))}
+
             {portafolio.map((img) => (
               <div
                 key={img.id}
@@ -310,6 +420,12 @@ const MiCatalogoSection = () => {
           </div>
         </Portal>
       )}
+
+      <ModalCamara
+        abierto={camaraAbierta}
+        onClose={() => setCamaraAbierta(false)}
+        onCapturar={manejarFotoCapturada}
+      />
     </div>
   );
 };

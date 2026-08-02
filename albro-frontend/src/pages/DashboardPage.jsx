@@ -7,7 +7,7 @@ import {
   CheckCircle2, XCircle, Bell, TrendingUp, BookOpen,
 } from "lucide-react";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 // ─── Secciones ────────────────────────────────────────────────────────────────
 import MapaSection           from "@/pages/dashboard/MapaSection";
@@ -199,6 +199,12 @@ const DashboardPage = () => {
       <MapaSection
         profesionalIdInicial={seccionActiva === "mapa" ? profesionalIdPendiente : null}
         onConsumirProfesionalInicial={consumirProfesionalPendiente}
+        onAbrirChat={(prof) =>
+          setChatAbierto({
+            profesionalId: prof.id,
+            nombreContacto: `${prof.nombre} ${prof.apellido}`,
+          })
+        }
       />
     ),
     servicios:   <ServiciosSection onNotificar={setNotificacion} />,
@@ -229,6 +235,30 @@ const DashboardPage = () => {
   const [chatAbierto, setChatAbierto] = useState(null); 
   const chatAbiertoRef = useRef(null);
   const hayNuevas = notificaciones.length > 0;
+
+  // ── Agrupa notificaciones de chat: una fila por conversación, no por mensaje ──
+  const notificacionesAgrupadas = useMemo(() => {
+    const vistos = new Set();
+    const resultado = [];
+
+    for (const n of notificaciones) {
+      if (n.tipo === "mensaje" && n.data?.conversacion) {
+        const key = `chat-${n.data.conversacion}`;
+        if (vistos.has(key)) continue; // ya mostramos la más reciente de esta conversación
+        vistos.add(key);
+
+        const cantidad = notificaciones.filter(
+          (x) => x.tipo === "mensaje" && x.data?.conversacion === n.data.conversacion
+        ).length;
+
+        resultado.push({ ...n, _cantidadAgrupada: cantidad });
+      } else {
+        resultado.push(n);
+      }
+    }
+
+    return resultado;
+  }, [notificaciones]);
 
   // ── Animación shake de la campana cada 10s mientras haya notificaciones nuevas ──
   const [animarCampana, setAnimarCampana] = useState(false);
@@ -328,6 +358,29 @@ const DashboardPage = () => {
   const abrirDetalleNotificacion = async (n) => {
     setMostrarNotificaciones(false);
 
+    if (n.tipo === "mensaje" && n.data?.conversacion) {
+      const relacionadas = notificaciones.filter(
+        (x) => x.tipo === "mensaje" && x.data?.conversacion === n.data.conversacion
+      );
+
+      if (relacionadas.length > 0) {
+        try {
+          await Promise.all(relacionadas.map((r) => marcarNotificacionLeida(r.id)));
+          setNotificaciones((prev) =>
+            prev.filter((x) => !relacionadas.some((r) => r.id === x.id))
+          );
+        } catch (err) {
+          console.error("Error marcando notificaciones de chat como leídas:", err);
+        }
+      }
+
+      setChatAbierto({
+        conversacionId: n.data.conversacion,
+        nombreContacto: n.data.remitente_nombre || "Chat",
+      });
+      return;
+    }
+
     if (!n.leida) {
       try {
         await marcarNotificacionLeida(n.id);
@@ -337,13 +390,8 @@ const DashboardPage = () => {
       }
     }
 
-    if (n.tipo === "mensaje" && n.data?.conversacion) {
-      setChatAbierto({
-        conversacionId: n.data.conversacion,
-        nombreContacto: n.data.remitente_nombre || "Chat",
-      });
-      return;
-    }
+    const seccionDestino = usuario?.rol === "profesional" ? "agenda" : "misCitas";
+    setSeccionActiva(seccionDestino);
 
     setNotificacionSeleccionada(n);
   };
@@ -375,15 +423,21 @@ const DashboardPage = () => {
   };
 
 
-  // Callback estable para agregar la notificación nueva al inicio de la lista
   const manejarNuevaNotificacion = useCallback((notif) => {
-    setNotificaciones((prev) => {
-      if (prev.some((n) => n.id === notif.id)) return prev;
-      return [notif, ...prev];
-    });
+    const esDelChatAbierto = esNotificacionDelChatVisible(notif);
 
-    if (!esNotificacionDelChatVisible(notif)) {
-      setNotificacion({ tipo: "exito", titulo: notif.titulo, mensaje: notif.mensaje, key: Date.now() });
+    if (!esDelChatAbierto) {
+      setNotificaciones((prev) => {
+        if (prev.some((n) => n.id === notif.id)) return prev;
+        return [notif, ...prev];
+      });
+      setNotificacion({
+        tipo: "exito",
+        titulo: notif.titulo,
+        mensaje: notif.mensaje,
+        key: Date.now(),
+        origen: notif,
+      });
     }
 
     if (
@@ -398,6 +452,7 @@ const DashboardPage = () => {
       });
     }
   }, [usuario, esNotificacionDelChatVisible]);
+
 
   useNotificacionesWS({ usuario, onNuevaNotificacion: manejarNuevaNotificacion });
 
@@ -434,7 +489,7 @@ const DashboardPage = () => {
       `}</style>
 
       {/* ── Toast global, flota sobre todo el Dashboard ── */}
-      <Toast toast={notificacion} onClose={() => setNotificacion(null)} />
+      <Toast toast={notificacion} onClose={() => setNotificacion(null)} onAbrir={abrirDetalleNotificacion} />
         
 
       {/* ── Modal de detalle de notificación ── */}
@@ -590,13 +645,20 @@ const DashboardPage = () => {
                       No tienes notificaciones nuevas
                     </div>
                   ) : (
-                    notificaciones.map((n) => (
+                    notificacionesAgrupadas.map((n) => (
                       <div
                         key={n.id}
                         onClick={() => abrirDetalleNotificacion(n)}
                         className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 last:border-0 text-sm cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-800 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-800/50"
                       >
-                        <p className="font-medium">{n.titulo}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">{n.titulo}</p>
+                          {n._cantidadAgrupada > 1 && (
+                            <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+                              {n._cantidadAgrupada}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs mt-0.5">{n.mensaje}</p>
                         <span className="text-xs text-zinc-400 dark:text-zinc-500">
                           {formatearFecha(n.fecha_creacion)}
@@ -731,6 +793,7 @@ const DashboardPage = () => {
       <ChatModal
         abierto={!!chatAbierto}
         conversacionId={chatAbierto?.conversacionId}
+        profesionalId={chatAbierto?.profesionalId}
         nombreContacto={chatAbierto?.nombreContacto}
         onClose={() => setChatAbierto(null)}
       />

@@ -400,7 +400,16 @@ export const iniciarCita = (citaId) =>
 export const detenerCronometro = (citaId) =>
   request(`/citas/${citaId}/detener/`, { method: "POST" });
 
+export const enviarArchivoChat = (conversacionId, archivo, { tipo, contenido } = {}) => {
+  const formData = new FormData();
+  formData.append("archivo", archivo);
+  if (tipo) formData.append("tipo", tipo);
+  if (contenido) formData.append("contenido", contenido);
 
+  return requestFormData(`/conversaciones/${conversacionId}/enviar-archivo/`, formData, {
+    method: "POST",
+  });
+};
 
 
 

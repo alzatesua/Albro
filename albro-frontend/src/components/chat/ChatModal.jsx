@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, useCallback, useLayoutEffect } from "react";
-import { X, Send, Loader2 } from "lucide-react";
+import { X, Send, Loader2, Check, CheckCheck, Paperclip, Mic, Square, Download } from "lucide-react";
 import "animate.css";
 import {
   obtenerOCrearConversacion,
   getMensajesConversacion,
   getWsTicket,
+  marcarConversacionLeida,
+  enviarArchivoChat,
 } from "../../services/api";
+
 import { useAuth } from "../../context/AuthContext";
 
 const WS_BASE_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8006";
@@ -20,6 +23,44 @@ const extraerCursor = (url) => {
     return new URL(url).searchParams.get("cursor");
   } catch {
     return null;
+  }
+};
+
+const formatearHora = (isoString) => {
+  const fecha = new Date(isoString);
+  return fecha.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+};
+
+const formatearSeparadorFecha = (isoString) => {
+  const fecha = new Date(isoString);
+  const hoy = new Date();
+  const ayer = new Date();
+  ayer.setDate(hoy.getDate() - 1);
+
+  const esMismoDia = (a, b) =>
+    a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+
+  if (esMismoDia(fecha, hoy)) return "Hoy";
+  if (esMismoDia(fecha, ayer)) return "Ayer";
+  return fecha.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+};
+
+const descargarArchivo = async (url, nombreSugerido) => {
+  try {
+    const respuesta = await fetch(url);
+    const blob = await respuesta.blob();
+    const urlBlob = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
+    enlace.href = urlBlob;
+    enlace.download = nombreSugerido || "imagen.jpg";
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    URL.revokeObjectURL(urlBlob);
+  } catch (err) {
+    console.error("Error descargando archivo:", err);
+    // Fallback: abrir en pestaña nueva si falla el fetch (por ejemplo, problema de CORS)
+    window.open(url, "_blank");
   }
 };
 
@@ -43,6 +84,12 @@ const ChatModal = ({ abierto, onClose, clienteId, profesionalId, conversacionId:
   const cursorSiguienteRef = useRef(null); // cursor para pedir mensajes más antiguos
   const ajusteScrollPendienteRef = useRef(null); // { prevScrollHeight, prevScrollTop }
 
+
+  const [enviandoArchivo, setEnviandoArchivo] = useState(false);
+  const [grabando, setGrabando] = useState(false);
+  const inputImagenRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const chunksAudioRef = useRef([]);
   // ── Precarga el audio de notificación una sola vez ────────────────────
   useEffect(() => {
     audioRef.current = new Audio(SONIDO_NOTIFICACION_URL);
@@ -89,10 +136,20 @@ const ChatModal = ({ abierto, onClose, clienteId, profesionalId, conversacionId:
         setConversacionId(conversacion.id);
         usuarioIdRef.current = usuario.id;
 
+        // Marca como leídos todos los mensajes/notificaciones de este chat al abrirlo
+        marcarConversacionLeida(conversacion.id).catch((err) =>
+          console.error("Error marcando conversación como leída:", err)
+        );
+
         // 2. Primera página = los 20 más recientes (vienen del más nuevo al más viejo)
         const historial = await getMensajesConversacion(conversacion.id, {
           page_size: MENSAJES_POR_PAGINA,
         });
+
+
+        usuarioIdRef.current = usuario.id;
+
+      
         if (cancelado) return;
 
         setMensajes([...historial.results].reverse()); // orden ascendente para mostrar
@@ -116,7 +173,21 @@ const ChatModal = ({ abierto, onClose, clienteId, profesionalId, conversacionId:
             setUltimoMensajeNuevoId(mensaje.id);
 
             const esMio = Number(mensaje.remitente) === Number(usuarioIdRef.current);
-            if (!esMio) reproducirSonido();
+            if (!esMio) {
+              reproducirSonido();
+              marcarConversacionLeida(conversacion.id).catch((err) =>
+                console.error("Error marcando conversación como leída:", err)
+              );
+            }
+          } else if (data.evento === "leido") {
+            const lectorId = Number(data.usuario);
+            if (lectorId !== Number(usuarioIdRef.current)) {
+              setMensajes((prev) =>
+                prev.map((m) =>
+                  Number(m.remitente) === Number(usuarioIdRef.current) ? { ...m, leido: true } : m
+                )
+              );
+            }
           }
         };
 
@@ -216,6 +287,60 @@ const ChatModal = ({ abierto, onClose, clienteId, profesionalId, conversacionId:
     setTexto("");
   };
 
+  const subirArchivo = async (archivo, tipo) => {
+    if (!conversacionId) return;
+    setEnviandoArchivo(true);
+    try {
+      await enviarArchivoChat(conversacionId, archivo, { tipo });
+      // El mensaje llega por WS al resto de participantes (y a mí mismo, si el consumer
+      // hace broadcast a todo el grupo incluido el remitente); si tu consumer excluye
+      // al remitente del broadcast, aquí tocaría agregarlo manualmente al estado.
+    } catch (err) {
+      console.error("Error enviando archivo:", err);
+      setError(err.message || "No se pudo enviar el archivo.");
+    } finally {
+      setEnviandoArchivo(false);
+    }
+  };
+
+  const manejarSeleccionImagen = (e) => {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (archivo) subirArchivo(archivo, "imagen");
+  };
+
+  const iniciarGrabacion = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksAudioRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksAudioRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksAudioRef.current, { type: "audio/webm" });
+        const archivo = new File([blob], `audio-${Date.now()}.webm`, { type: "audio/webm" });
+        subirArchivo(archivo, "audio");
+      };
+
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setGrabando(true);
+    } catch (err) {
+      console.error("Error accediendo al micrófono:", err);
+      setError("Necesitas dar permiso de micrófono para grabar audio.");
+    }
+  };
+
+  const detenerGrabacion = () => {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+    setGrabando(false);
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -274,24 +399,85 @@ const ChatModal = ({ abierto, onClose, clienteId, profesionalId, conversacionId:
                   <Loader2 size={16} className="animate-spin text-zinc-400" />
                 </div>
               )}
-              {mensajes.map((m) => {
+              {mensajes.map((m, i) => {
                 const esMio = Number(m.remitente) === Number(usuarioIdRef.current);
                 const esNuevo = m.id === ultimoMensajeNuevoId;
+
+                const anterior = mensajes[i - 1];
+                const mostrarSeparador =
+                  !anterior ||
+                  formatearSeparadorFecha(anterior.fecha_envio) !== formatearSeparadorFecha(m.fecha_envio);
+
                 return (
-                  <div key={m.id} className={`flex ${esMio ? "justify-end" : "justify-start"}`}>
-                    <div
-                      onAnimationEnd={() => {
-                        if (esNuevo) setUltimoMensajeNuevoId(null);
-                      }}
-                      className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm ${
-                        esNuevo ? "animate__animated animate__rubberBand" : ""
-                      } ${
-                        esMio
-                          ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-br-sm"
-                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 rounded-bl-sm"
-                      }`}
-                    >
-                      {m.contenido}
+                  <div key={m.id}>
+                    {mostrarSeparador && (
+                      <div className="flex justify-center my-3">
+                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full">
+                          {formatearSeparadorFecha(m.fecha_envio)}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className={`flex ${esMio ? "justify-end" : "justify-start"}`}>
+                      <div
+                        onAnimationEnd={() => {
+                          if (esNuevo) setUltimoMensajeNuevoId(null);
+                        }}
+                        className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm ${
+                          esNuevo ? "animate__animated animate__rubberBand" : ""
+                        } ${
+                          esMio
+                            ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-br-sm"
+                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 rounded-bl-sm"
+                        }`}
+                      >
+                        {m.tipo === "imagen" && m.archivo_url ? (
+                          <div className="relative group">
+                            <img
+                              src={m.archivo_url}
+                              alt="Imagen enviada"
+                              className="rounded-lg max-w-full max-h-64 object-cover"
+                            />
+                            <button
+                              onClick={() => descargarArchivo(m.archivo_url, `imagen-${m.id}.jpg`)}
+                              className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full flex items-center justify-center bg-black/50 text-white opacity-100 hover:bg-black/70 transition-colors"
+                              title="Descargar imagen"
+                            >
+                              <Download size={14} />
+                            </button>
+                          </div>
+                        ) : m.tipo === "audio" && m.archivo_url ? (
+                          <div className="flex items-center gap-2">
+                            <audio controls src={m.archivo_url} className="max-w-full" />
+                            <button
+                              onClick={() => descargarArchivo(m.archivo_url, `audio-${m.id}.webm`)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shrink-0"
+                              title="Descargar audio"
+                            >
+                              <Download size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <p>{m.contenido}</p>
+                        )}
+
+                        <div className={`flex items-center gap-1 mt-1 ${esMio ? "justify-end" : "justify-start"}`}>
+                          <span
+                            className={`text-[10px] ${
+                              esMio ? "text-zinc-300 dark:text-zinc-500" : "text-zinc-400 dark:text-zinc-500"
+                            }`}
+                          >
+                            {formatearHora(m.fecha_envio)}
+                          </span>
+                          {esMio && (
+                            m.leido ? (
+                              <CheckCheck size={13} className="text-sky-400" />
+                            ) : (
+                              <Check size={13} className="text-zinc-300 dark:text-zinc-500" />
+                            )
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -302,21 +488,49 @@ const ChatModal = ({ abierto, onClose, clienteId, profesionalId, conversacionId:
 
         {/* Input */}
         <div className="border-t border-zinc-200 dark:border-zinc-700 px-3 py-2.5 flex items-center gap-2">
+          <input
+            ref={inputImagenRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={manejarSeleccionImagen}
+          />
+
+          <button
+            onClick={() => inputImagenRef.current?.click()}
+            disabled={!conectado || enviandoArchivo || grabando}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 shrink-0"
+          >
+            <Paperclip size={18} />
+          </button>
+
+          <button
+            onClick={grabando ? detenerGrabacion : iniciarGrabacion}
+            disabled={!conectado || enviandoArchivo}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors disabled:opacity-40 shrink-0 ${
+              grabando
+                ? "bg-red-500 text-white animate-pulse"
+                : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+          >
+            {grabando ? <Square size={16} /> : <Mic size={18} />}
+          </button>
+
           <textarea
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            placeholder="Escribe un mensaje…"
-            disabled={!conectado}
+            placeholder={grabando ? "Grabando audio…" : "Escribe un mensaje…"}
+            disabled={!conectado || grabando}
             className="flex-1 resize-none bg-zinc-100 dark:bg-zinc-800 rounded-full px-4 py-2 text-sm text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none disabled:opacity-50"
           />
           <button
             onClick={enviarMensaje}
-            disabled={!conectado || !texto.trim()}
+            disabled={!conectado || !texto.trim() || grabando}
             className="w-9 h-9 rounded-full flex items-center justify-center bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 disabled:opacity-30 transition-opacity shrink-0"
           >
-            <Send size={16} />
+            {enviandoArchivo ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
         </div>
       </div>

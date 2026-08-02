@@ -73,7 +73,7 @@ const crearAvatarPinIcon = ({ imagenUrl, iniciales, id, seleccionado = false, es
 };
 
 // ─── Mapa principal ─────────────────────────────────────────────────────────
-const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial }) => {
+const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial, onAbrirChat }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null); // evita doble init en StrictMode
   const [estado, setEstado] = useState({ cargando: true, error: null, listo: false });
@@ -440,6 +440,25 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial }) => 
             >
               Agendar cita
             </button>
+            <button
+              class="btn-mensaje-popup"
+              data-profesional-id="${prof.id}"
+              style="
+                display:block;
+                margin-top:6px;
+                width:100%;
+                background:#fff;
+                color:#18181b;
+                border:1px solid #d4d4d8;
+                border-radius:9999px;
+                padding:6px 12px;
+                font-size:12px;
+                font-weight:500;
+                cursor:pointer;
+              "
+            >
+              Enviar mensaje
+            </button>
           </div>
           `,
           { closeButton: false, autoPan: false }
@@ -492,6 +511,7 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial }) => 
         }
 
         // Conecta el botón "Ver catálogo"
+        // Conecta el botón "Ver catálogo"
         const botonCatalogo = popupEl.querySelector(".btn-catalogo-popup");
         if (botonCatalogo) {
           botonCatalogo.addEventListener("click", () => {
@@ -499,6 +519,18 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial }) => 
             const entry = marcadoresProfesionalesRef.current[profesionalId];
             if (entry) {
               abrirCatalogo(entry.prof);
+            }
+          });
+        }
+
+        // Conecta el botón "Enviar mensaje"
+        const botonMensaje = popupEl.querySelector(".btn-mensaje-popup");
+        if (botonMensaje) {
+          botonMensaje.addEventListener("click", () => {
+            const profesionalId = botonMensaje.dataset.profesionalId;
+            const entry = marcadoresProfesionalesRef.current[profesionalId];
+            if (entry) {
+              onAbrirChat?.(entry.prof);
             }
           });
         }

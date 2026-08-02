@@ -38,6 +38,12 @@ class Conversacion(models.Model):
 
 
 class Mensaje(models.Model):
+    TIPO_CHOICES = [
+        ('texto', 'Texto'),
+        ('imagen', 'Imagen'),
+        ('audio', 'Audio'),
+    ]
+
     conversacion = models.ForeignKey(
         Conversacion,
         on_delete=models.CASCADE,
@@ -48,7 +54,9 @@ class Mensaje(models.Model):
         on_delete=models.CASCADE,
         related_name='mensajes_enviados',
     )
-    contenido = models.TextField(max_length=2000)
+    contenido = models.TextField(max_length=2000, blank=True)
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='texto')
+    archivo = models.FileField(upload_to='mensajeria/adjuntos/%Y/%m/', null=True, blank=True)
     fecha_envio = models.DateTimeField(auto_now_add=True)
     leido = models.BooleanField(default=False)
     leido_en = models.DateTimeField(null=True, blank=True)

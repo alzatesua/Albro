@@ -60,6 +60,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "conversacion": self.conversacion_id,
                     "remitente": self.user.id,
                     "contenido": mensaje.contenido,
+                    "tipo": "texto",
+                    "archivo_url": None,
                     "fecha_envio": mensaje.fecha_envio.isoformat(),
                     "leido": mensaje.leido,
                 },
@@ -70,6 +72,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             "evento": "mensaje",
             "mensaje": event["mensaje"],
+        }))
+
+    async def chat_leido(self, event):
+        await self.send(text_data=json.dumps({
+            "evento": "leido",
+            "usuario": event["usuario"],
         }))
 
     @database_sync_to_async

@@ -1,6 +1,6 @@
 // src/hooks/useNotificacionesWS.js
 import { useEffect, useRef, useCallback } from "react";
-import { getWsTicket } from "@/services/api"; // ajusta el path real
+import { getWsTicket } from "@/services/api";
 
 const WS_BASE_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8006";
 const RECONEXION_MS = 3000;
@@ -9,23 +9,28 @@ export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActual
   const socketRef = useRef(null);
   const reconectarTimeoutRef = useRef(null);
   const montadoRef = useRef(true);
-  const audioRef = useRef(null);
+  const audioChatRef = useRef(null);
+  const audioGeneralRef = useRef(null);
 
-  // Precarga el audio una sola vez
+  // Precarga los audios una sola vez
   useEffect(() => {
-    const rutaSonido = import.meta.env.VITE_SONIDO_NOTIFICACION || "/sounds/notificacion2.mp3";
-    audioRef.current = new Audio(rutaSonido);
-    audioRef.current.volume = 0.8;
+    audioChatRef.current = new Audio("/sounds/notificacion3.mp3");
+    audioChatRef.current.volume = 0.8;
+
+    const rutaGeneral = import.meta.env.VITE_SONIDO_NOTIFICACION || "/sounds/notificacion2.mp3";
+    audioGeneralRef.current = new Audio(rutaGeneral);
+    audioGeneralRef.current.volume = 0.8;
   }, []);
 
-  const reproducirSonido = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {
-        // Los navegadores bloquean autoplay si el usuario no ha interactuado
-        // con la página todavía — es esperable, no es un error real.
-      });
-    }
+  const reproducirSonido = useCallback((notificacion) => {
+    const esChat = notificacion?.tipo === "mensaje";
+    const audio = esChat ? audioChatRef.current : audioGeneralRef.current;
+    if (!audio) return;
+    audio.currentTime = 0;
+    audio.play().catch(() => {
+      // Los navegadores bloquean autoplay si el usuario no ha interactuado
+      // con la página todavía — es esperable, no es un error real.
+    });
   }, []);
 
   const conectar = useCallback(async () => {
@@ -44,7 +49,7 @@ export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActual
           if (data.evento === "notificacion" && data.notificacion) {
             onNuevaNotificacion?.(data.notificacion);
             if (!debeSilenciarSonido?.(data.notificacion)) {
-              reproducirSonido();
+              reproducirSonido(data.notificacion);
             }
           } else if (data.tipo && data.cita) {
             onCitaActualizada?.(data);
@@ -80,7 +85,7 @@ export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActual
       montadoRef.current = false;
       clearTimeout(reconectarTimeoutRef.current);
       if (socketRef.current) {
-        socketRef.current.onclose = null; // evita reconectar al desmontar
+        socketRef.current.onclose = null;
         socketRef.current.close();
         socketRef.current = null;
       }

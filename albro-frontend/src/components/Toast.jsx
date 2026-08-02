@@ -5,7 +5,7 @@ import Portal from "./ui/Portal";
 const DURACION_MS = 10000;
 const DURACION_SALIDA_MS = 750; // duración aproximada de bounceOutRight
 
-const Toast = ({ toast, onClose }) => {
+const Toast = ({ toast, onClose, onAbrir }) => {
   const onCloseRef = useRef(onClose);
   const [saliendo, setSaliendo] = useState(false);
   const [toastVisible, setToastVisible] = useState(toast);
@@ -45,6 +45,13 @@ const Toast = ({ toast, onClose }) => {
     setSaliendo(true);
   };
 
+  const handleClickToast = () => {
+    if (toastVisible?.origen) {
+      onAbrir?.(toastVisible.origen);
+    }
+    handleCerrarManual();
+  };
+
   if (!toastVisible) return null;
   const esError = toastVisible.tipo === "error";
 
@@ -59,7 +66,10 @@ const Toast = ({ toast, onClose }) => {
         aria-live="polite"
       >
         <div
+          onClick={handleClickToast}
           className={`relative overflow-hidden min-w-[260px] max-w-sm rounded-xl shadow-lg border backdrop-blur-sm ${
+            toastVisible?.origen ? "cursor-pointer" : ""
+          } ${
             esError
               ? "bg-red-50/95 dark:bg-red-950/90 border-red-200 dark:border-red-500/30"
               : "bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-700"
@@ -95,7 +105,10 @@ const Toast = ({ toast, onClose }) => {
 
             <button
               type="button"
-              onClick={handleCerrarManual}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCerrarManual();
+              }}
               className={`shrink-0 self-center w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
                 esError
                   ? "text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-500/15"

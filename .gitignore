@@ -6,3 +6,5 @@ venv/
 .aider*
 __pycache__/
 *.pyc
+.png
+.jpg

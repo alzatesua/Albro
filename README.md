@@ -1,52 +1,136 @@
 # Albro
 
-Plataforma de servicios profesionales con sistema de reservas, subastas y gestión de citas. Desarrollado con Django 6 y Django REST Framework.
+Plataforma integral para conectar clientes con profesionales, facilitar reservas de citas, gestionar servicios, mensajes en tiempo real y operar procesos de pago y membresías desde una sola solución.
 
-##  Características
+## Visión general
 
-- **Sistema de Autenticación**: Registro de usuarios, login con JWT (JSON Web Tokens)
-- **Gestión de Usuarios**: Roles diferenciados (Admin, Profesional, Cliente)
-- **Perfiles de Usuario**: Actualización de perfil y gestión de fotos
-- **API REST**: Arquitectura RESTful con Django REST Framework
-- **WebSockets**: Soporte para conexiones en tiempo real con Django Channels
+Albro combina un backend en Django con un frontend en React/Vite para ofrecer una experiencia completa para:
 
-##  Tecnologías Utilizadas
+- clientes que buscan y reservan servicios,
+- profesionales que gestionan su perfil, agenda, servicios y portafolio,
+- administradores que supervisan pagos, membresías y operaciones de la plataforma.
 
-- **Python**: 3.12.3
-- **Django**: 6.0.6
-- **Django REST Framework**: 3.17.1
-- **PostgreSQL**: Base de datos (via psycopg2-binary 2.9.12)
-- **JWT**: djangorestframework_simplejwt 5.5.1
-- **CORS**: django-cors-headers 4.9.0
-- **WebSockets**: Django Channels 4.3.2
-- **Environment Variables**: python-dotenv 1.2.2
+## Funcionalidades principales
 
-##  Estructura del Proyecto
+### 1. Autenticación y gestión de usuarios
 
-```
+- Registro y login de usuarios con JWT.
+- Soporte para autenticación con Google.
+- Roles diferenciados: admin, profesional y cliente.
+- Perfil de usuario editable con foto, teléfono y estado de primer ingreso.
+- Gestión de trial gratuito para cuentas profesionales.
+
+### 2. Perfiles profesionales
+
+- Registro y actualización del perfil profesional.
+- Información de negocio: dirección, ubicación, nombre del local y descripción.
+- Estados de atención y horarios configurables.
+- Ubicación geográfica con coordenadas y búsqueda por ubicación.
+- Portafolio de imágenes del trabajo realizado.
+- Código QR para el perfil profesional.
+- Preferencias de notificación por correo.
+- Activación/desactivación del perfil profesional.
+
+### 3. Catálogo de servicios
+
+- Categorías de servicios.
+- Servicios configurables por categoría.
+- Asociación de servicios con profesionales.
+- Precios y duración por servicio ofrecido.
+- Vista de profesionales por servicio y catálogo público del profesional.
+
+### 4. Sistema de citas
+
+- Agendamiento de citas entre clientes y profesionales.
+- Gestión de estados: pendiente, confirmada, cancelada y completada.
+- Cancelación, confirmación, completación y reagendamiento de citas.
+- Validación de disponibilidad para evitar conflictos de horario.
+- Integración con WebSockets para actualización en tiempo real.
+- Calificación posterior a la cita.
+
+### 5. Mensajería y notificaciones
+
+- Conversaciones entre cliente y profesional.
+- Envío de mensajes de texto, imágenes y audio.
+- Marcado de mensajes como leídos.
+- Notificaciones en tiempo real por WebSockets.
+- Notificaciones internas y correos automáticos para eventos importantes.
+
+### 6. Pagos, membresías y facturación
+
+- Gestión de membresías con planes mensual y anual.
+- Registro de pagos manuales con comprobante.
+- Confirmación de pagos desde el panel administrativo.
+- Generación de facturas y archivos PDF.
+- Control de pagos pendientes, exitosos, fallidos y reembolsados.
+
+### 7. Panel administrativo
+
+- Acceso protegido con token OTP y control por IP.
+- Visualización de pagos pendientes y por estado.
+- Confirmación de pagos desde un flujo dedicado.
+- Operaciones administrativas centralizadas para la plataforma.
+
+### 8. Frontend moderno
+
+- Aplicación frontend en React + Vite.
+- UI con Chakra UI, MUI, Ant Design y componentes modernos.
+- Integración con Leaflet para mapas y ubicaciones.
+- Soporte para Google OAuth y experiencia de usuario adaptada para clientes y profesionales.
+
+## Tecnologías utilizadas
+
+### Backend
+
+- Python 3.12+
+- Django 6.0.6
+- Django REST Framework 3.17.1
+- Django Channels 4.3.2
+- Simple JWT
+- PostgreSQL
+- Redis
+- Celery
+- Django CORS Headers
+- Pillow, psycopg2-binary, python-dotenv
+
+### Frontend
+
+- React 19
+- Vite
+- Chakra UI
+- MUI
+- Ant Design
+- Leaflet
+- Recharts
+
+## Estructura del proyecto
+
+```text
 albro/
-├── albro/                 # Configuración principal del proyecto
-│   ├── settings.py       # Configuración de Django
-│   ├── urls.py           # URLs principales
-│   ├── asgi.py           # Configuración ASGI (WebSockets)
-│   └── wsgi.py           # Configuración WSGI
-├── usuarios/             # App de gestión de usuarios 
-│   ├── models.py         # Modelo Usuario personalizado
-│   ├── views.py          # Vistas de la API
-│   ├── serializers.py    # Serializadores REST
-│   └── urls.py           # URLs de usuarios
-├── profesionales/        # App de perfiles profesionales y estados de atención
-├── servicios/            # App de servicios (pendiente)
-├── citas/                # App de citas (pendiente)
-├── subastas/             # App de subastas (pendiente)
-└── cola/                 # App de gestión de colas (pendiente)
+├── albro/                 # Configuración principal de Django
+├── usuarios/              # Usuarios, autenticación y perfiles base
+├── profesionales/         # Perfiles profesionales, estados, horarios y portafolio
+├── servicios/             # Categorías, servicios y membresías
+├── citas/                 # Gestión de citas y WebSockets
+├── mensajeria/            # Conversaciones y mensajes en tiempo real
+├── notificaciones/        # Notificaciones internas y correos
+├── panel_admin/           # Panel administrativo y flujo de pagos
+├── configuraciones/       # Switches y configuraciones del sistema
+├── google_auth/           # Integración con Google OAuth
+├── albro-frontend/        # Frontend React/Vite
+└── media/                 # Archivos subidos por usuarios
 ```
 
-## Configuración
+## Requisitos previos
 
-### Variables de Entorno
+- Python 3.12+
+- PostgreSQL
+- Redis
+- Node.js y npm para el frontend
 
-Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
+## Variables de entorno
+
+Crear un archivo `.env` en la raíz del proyecto con valores como estos:
 
 ```env
 DB_NAME=albro
@@ -54,274 +138,152 @@ DB_USER=albro_user
 DB_PASSWORD=tu_contraseña
 DB_HOST=localhost
 DB_PORT=5432
-SECRET_KEY=tu-secret-key-de-django
+SECRET_KEY=tu-secret-key
 DEBUG=True
+REDIS_HOST=127.0.0.1
+EMAIL_HOST=smtp-relay.brevo.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=tu_usuario
+EMAIL_HOST_PASSWORD=tu_password
+DEFAULT_FROM_EMAIL=Albro <no-reply@albro.com>
+FRONTEND_URL=http://localhost:5173
+GOOGLE_GEOCODING_API_KEY=tu_api_key
+PANEL_ADMIN_SECRET_KEY=tu_secret_panel
+IPS_PERMITIDAS_PANEL=127.0.0.1,localhost
 ```
 
-### Base de Datos
+## Instalación local
 
-El proyecto utiliza PostgreSQL. Asegúrate de tener PostgreSQL instalado y crear la base de datos:
+1. Clonar el repositorio
 
 ```bash
-# Crear base de datos y usuario
-sudo -u postgres psql
-CREATE DATABASE albro;
-CREATE USER albro_user WITH PASSWORD 'Albrojuan01.';
-GRANT ALL PRIVILEGES ON DATABASE albro TO albro_user;
-\q
+git clone <repo-url>
+cd albro
 ```
 
-## Instalación
+2. Crear y activar un entorno virtual
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/alzatesua/Albro.git
-   cd albro
-   ```
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
 
-2. **Crear entorno virtual**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
-   ```
+3. Instalar dependencias del backend
 
-3. **Instalar dependencias**
-   ```bash
-   pip install Django djangorestframework djangorestframework-simplejwt django-cors-headers channels psycopg2-binary python-dotenv
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-4. **Configurar variables de entorno**
-   ```bash
-   cp .env.example .env
-   # Editar .env con tus configuraciones
-   ```
+4. Instalar dependencias del frontend
 
-5. **Ejecutar migraciones**
-   ```bash
-   python manage.py makemigrations
-   python manage.py migrate
-   ```
+```bash
+cd albro-frontend
+npm install
+cd ..
+```
 
-6. **Crear superusuario**
-   ```bash
-   python manage.py createsuperuser
-   ```
+5. Crear la base de datos en PostgreSQL y aplicar migraciones
 
-7. **Iniciar servidor de desarrollo**
-   ```bash
-   python manage.py runserver 8006
-   ```
+```bash
+python manage.py migrate
+```
 
-El servidor estará disponible en `http://localhost:8006`
+6. Crear un superusuario
 
-## Endpoints de la API
+```bash
+python manage.py createsuperuser
+```
+
+## Ejecución del proyecto
+
+### Backend
+
+```bash
+python manage.py runserver 8006
+```
+
+### Frontend
+
+```bash
+cd albro-frontend
+npm run dev
+```
+
+### Servicios auxiliares
+
+Para funcionalidades de mensajería, notificaciones y tareas programadas, se recomienda tener Redis y Celery activos:
+
+```bash
+redis-server
+celery -A albro worker -l info
+```
+
+## Endpoints principales de la API
 
 ### Autenticación
 
-- `POST /api/usuarios/registro/` - Registro de nuevos usuarios
-  ```json
-  {
-    "email": "usuario@example.com",
-    "password": "password123",
-    "nombre": "Juan",
-    "apellido": "Pérez",
-    "telefono": "+57 300 123 4567",
-    "rol": "cliente"
-  }
-  ```
-
-- `POST /api/usuarios/login/` - Inicio de sesión
-  ```json
-  {
-    "email": "usuario@example.com",
-    "password": "password123"
-  }
-  ```
-
-  **Respuesta**:
-  ```json
-  {
-    "usuario": {
-      "id": 1,
-      "email": "usuario@example.com",
-      "nombre": "Juan",
-      "apellido": "Pérez",
-      "rol": "cliente"
-    },
-    "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-    "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
-  }
-  ```
-
-### Perfil de Usuario
-
-- `GET /api/usuarios/perfil/` - Obtener perfil del usuario autenticado
-- `PUT /api/usuarios/perfil/` - Actualizar perfil (requiere autenticación)
-
-  **Respuesta**:
-  ```json
-  {
-    "mensaje": "Perfil actualizado",
-    "usuario": {
-      "id": 1,
-      "email": "usuario@example.com",
-      "nombre": "Juan",
-      "apellido": "Pérez",
-      "telefono": "+57 300 123 4567",
-      "foto": "/media/usuarios/fotos/avatar.jpg",
-      "rol": "cliente",
-      "primer_ingreso": false,
-      "fecha_registro": "2026-06-26T09:00:00Z"
-    }
-  }
-  ```
-
-- `POST /api/usuarios/primer-ingreso/` - Marcar primer ingreso como completado
+- POST `/api/usuarios/registro/`
+- POST `/api/usuarios/login/`
+- GET `/api/usuarios/perfil/`
+- PUT `/api/usuarios/perfil/`
+- POST `/api/usuarios/primer-ingreso/`
 
 ### Profesionales
 
-Todos los endpoints de profesionales requieren autenticación JWT:
+- POST `/api/profesionales/registro/`
+- GET/PUT/PATCH `/api/profesionales/perfil/`
+- GET `/api/profesionales/buscar/`
+- GET `/api/profesionales/ubicaciones/`
+- GET `/api/profesionales/<id>/agenda/`
+- POST `/api/profesionales/portafolio/`
+- GET `/api/profesionales/mi-qr/`
 
-```
-Authorization: Bearer <access_token>
-```
+### Servicios
 
-- `POST /api/profesionales/registro/` - Crear o actualizar el perfil profesional del usuario autenticado.
+- GET `/api/servicios/categorias/`
+- GET `/api/servicios/servicios/`
+- GET `/api/servicios/profesionales/`
+- GET `/api/servicios/mis-servicios/`
+- POST `/api/servicios/membresia/pagar/`
 
-  Al registrar el perfil, el usuario pasa a rol `profesional`. El campo `estado_id` es opcional; si no se envía, se asigna automáticamente el estado con código `disponible`.
+### Citas
 
-  ```json
-  {
-    "direccion": "Calle 10 # 20-30",
-    "ubicacion": "Bogotá",
-    "latitud": 4.7100,
-    "longitud": -700,
-    "nombre_local": "Barbería Central",
-    "descripcion": "Cortes, barba y cuidado personal",
-    "activo": true,
-    "horarios_atencion": [
-      {
-        "dia": "lunes",
-        "inicio": "08:00",
-        "fin": "17:00"
-      }
-    ],
-    "estado_id": 1
-  }
-  ```
+- GET/POST `/api/citas/`
+- GET/PUT/PATCH/DELETE `/api/citas/<id>/`
+- POST `/api/citas/<id>/cancel/`
+- POST `/api/citas/<id>/confirmar/`
+- POST `/api/citas/<id>/completar/`
+- POST `/api/citas/<id>/reagendar/`
 
-- `GET /api/profesionales/perfil/` - Obtener el perfil profesional del usuario autenticado.
-- `PUT /api/profesionales/perfil/` - Actualizar todo el perfil profesional.
-- `PATCH /api/profesionales/perfil/` - Actualizar parcialmente el perfil profesional.
+### Mensajería
 
-  **Respuesta del perfil**:
-  ```json
-  {
-    "id": 3,
-    "nombre": "Juan",
-    "apellido": "Pérez",
-    "email": "usuario@example.com",
-    "telefono": "+57 300 123 4567",
-    "rol": "profesional",
-    "direccion": "Calle 10 # 20-30",
-    "ubicacion": "Bogotá",
-    "latitud": "40",
-    "longitud": "-700",
-    "nombre_local": "Barbería Central",
-    "descripcion": "Cortes, barba y cuidado personal",
-    "activo": true,
-    "horarios_atencion": [
-      {
-        "dia": "lunes",
-        "inicio": "08:00",
-        "fin": "17:00"
-      }
-    ],
-    "estado": {
-      "id": 1,
-      "codigo": "disponible",
-      "nombre": "Disponible",
-      "activo": true,
-      "fecha_creacion": "2026-06-26T09:00:00Z"
-    },
-    "fecha_creacion": "2026-06-26T09:00:00Z",
-    "fecha_actualizacion": "2026-06-26T09:00:00Z"
-  }
-  ```
+- GET/POST `/api/conversaciones/`
+- GET `/api/conversaciones/<id>/mensajes/`
+- POST `/api/conversaciones/<id>/marcar_leido/`
 
-### Estados de Atención
+### Panel administrativo
 
-Los estados de atención son un catálogo seleccionable por ID. La migración inicial crea estos estados:
+- POST `/gestion-x9k2/solicitar-codigo/`
+- POST `/gestion-x9k2/verificar-codigo/`
+- POST `/gestion-x9k2/confirmar-pago/`
+- GET `/gestion-x9k2/pagos-pendientes/`
 
-- Disponible
-- No disponible
-- En almuerzo
-- En break
+## Notas importantes
 
-- `GET /api/profesionales/estados/` - Listar estados activos disponibles para seleccionar.
+- El proyecto está preparado para correr con WebSockets y Redis en modo desarrollo.
+- Algunas funciones de pago y notificaciones dependen de servicios externos como correo SMTP y Redis.
+- El frontend y el backend pueden ejecutarse en paralelo en puertos diferentes para desarrollo local.
 
-  **Respuesta**:
-  ```json
-  [
-    {
-      "id": 1,
-      "codigo": "disponible",
-      "nombre": "Disponible",
-      "activo": true,
-      "fecha_creacion": "2026-06-26T09:00:00Z"
-    }
-  ]
-  ```
+## Estado del proyecto
 
-- `POST /api/profesionales/estados/` - Crear un estado de atención. Solo usuarios `admin` o `is_staff`.
+El aplicativo incluye un conjunto robusto de módulos para:
 
-  ```json
-  {
-    "codigo": "en_reunion",
-    "nombre": "En reunión",
-    "activo": true
-  }
-  ```
+- búsqueda y reserva de servicios,
+- gestión de negocios profesionales,
+- comunicación directa,
+- pagos y membresías,
+- administración operativa de la plataforma.
 
-- `GET /api/profesionales/estado/` - Obtener el estado actual del profesional autenticado.
-
-  **Respuesta**:
-  ```json
-  {
-    "profesional_id": 3,
-    "estado": {
-      "id": 1,
-      "codigo": "disponible",
-      "nombre": "Disponible",
-      "activo": true,
-      "fecha_creacion": "2026-06-26T09:00:00Z"
-    }
-  }
-  ```
-
-- `PATCH /api/profesionales/estado/` - Cambiar el estado del profesional autenticado. Solo usuarios con rol `profesional`.
-
-  ```json
-  {
-    "estado_id": 2
-  }
-  ```
-
-  **Respuesta**:
-  ```json
-  {
-    "mensaje": "Estado cambiado a No disponible"
-  }
-  ```
-
-- `GET /api/profesionales/estado/<profesional_id>/` - Obtener el estado actual de un profesional específico.
-
-  **Respuesta**:
-  ```json
-  {
-    "profesional_id": 3,
-    "nombre_local": "Barbería Central",
-    "estado": {
       "id": 1,
       "codigo": "disponible",
       "nombre": "Disponible",

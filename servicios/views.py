@@ -145,6 +145,8 @@ class ProfesionalesView(APIView):
 
         queryset = PerfilProfesional.objects.filter(
             activo=True
+        ).exclude(
+            estado__codigo='no_disponible'
         ).select_related('usuario', 'estado')
 
         if servicio_id:

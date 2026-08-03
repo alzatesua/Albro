@@ -25,6 +25,9 @@ const ModalCatalogoProfesional = ({
   }, [imagenAmpliada]);
 
   if (!profesional) return null;
+  const estadoCodigo =
+    catalogo?.profesional?.estado?.codigo ?? profesional?.estado?.codigo;
+  const noDisponible = estadoCodigo === "no_disponible";
 
   return (
     <Portal>
@@ -184,11 +187,17 @@ const ModalCatalogoProfesional = ({
               Cerrar
             </button>
             <button
-              onClick={() => onAgendar(profesional)}
-              className="px-3.5 py-1.5 text-sm font-medium rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 transition-opacity flex items-center gap-1.5"
+              onClick={() => !noDisponible && onAgendar(profesional)}
+              disabled={noDisponible}
+              title={noDisponible ? "Este profesional no está disponible en este momento" : ""}
+              className={`px-3.5 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5 transition-opacity ${
+                noDisponible
+                  ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+                  : "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90"
+              }`}
             >
               <CalendarClock size={14} />
-              Agendar cita
+              {noDisponible ? "No disponible" : "Agendar cita"}
             </button>
           </div>
         </div>

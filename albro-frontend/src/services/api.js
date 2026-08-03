@@ -97,6 +97,11 @@ export const registrarProfesional = (datos) =>
     body: JSON.stringify(datos),
   });
 
+export const activarProfesional = () =>
+  request("/profesionales/activar/", {
+    method: "POST",
+  });
+
 export const actualizarImagenPerfil = (archivo) => {
   const formData = new FormData();
   formData.append("imagen_perfil", archivo);

@@ -21,7 +21,7 @@ import ClientesSection       from "@/pages/dashboard/ClientesSection";
 import ModalRegistroProfesional from "@/components/ModalRegistroProfesional";
 import { usePerfilProfesional } from "@/hooks/usePerfilProfesional";
 import Portal from "@/components/ui/Portal";
-import { getNotificaciones, marcarNotificacionLeida, marcarTodasNotificacionesLeidas } from "@/services/api"; // ajusta el path real
+import { getNotificaciones, marcarNotificacionLeida, marcarTodasNotificacionesLeidas, actualizarDatosPersonales, activarProfesional } from "@/services/api";
 import { useNotificacionesWS } from "@/hooks/useNotificacionesWS";
 import Toast from "@/components/Toast";
 import HistoricoSection      from "@/pages/dashboard/HistoricoSection";
@@ -30,6 +30,7 @@ import MisCitasSection from "@/pages/dashboard/MisCitasSection";
 import ChatModal from "@/components/chat/ChatModal";
 import MiCatalogoSection from "@/pages/dashboard/MiCatalogoSection";
 import { AGENDAR_PENDIENTE_KEY } from "@/pages/AgendarProfesionalPage";
+
 
 // ─── Hook modo oscuro ─────────────────────────────────────────────────────────
 const useDarkMode = () => {
@@ -141,6 +142,9 @@ const Dock = ({ menu, seccionActiva, setSeccionActiva }) => {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 const DashboardPage = () => {
+  const [mostrarModalProfesional, setMostrarModalProfesional] = useState(false);
+  const [cambiandoRol, setCambiandoRol] = useState(false);
+  const [errorCambioRol, setErrorCambioRol] = useState(null);
   const { usuario, limpiarSesion } = useAuth();
   const navigate = useNavigate();
   const [dark, toggleDark] = useDarkMode();
@@ -157,6 +161,8 @@ const DashboardPage = () => {
   const [profesionalIdPendiente, setProfesionalIdPendiente] = useState(
     () => localStorage.getItem(AGENDAR_PENDIENTE_KEY)
   );
+  const [mostrarCompletarPerfil, setMostrarCompletarPerfil] = useState(false);
+  
 
   // ── NUEVO: sección activa persistida en localStorage ─────────────────────
   const [seccionActiva, setSeccionActivaState] = useState(() => {
@@ -576,6 +582,7 @@ const DashboardPage = () => {
                 </p>
               </div>
 
+
               {/* Footer */}
               <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
                 <Button
@@ -733,7 +740,8 @@ const DashboardPage = () => {
             </button>
 
             {mostrarMenuPerfil && (
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
+            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
+              {usuario?.rol === "profesional" && (
                 <button
                   onClick={irAConfigurarPerfil}
                   className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
@@ -741,18 +749,22 @@ const DashboardPage = () => {
                   <Settings size={15} className="text-zinc-400 dark:text-zinc-500" />
                   Configurar perfil
                 </button>
+              )}
 
-                {usuario?.rol === "cliente" && (
-                  <button
-                    onClick={irACambiarAProfesional}
-                    className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800"
-                  >
-                    <Briefcase size={15} className="text-zinc-400 dark:text-zinc-500" />
-                    Cambiar a profesional
-                  </button>
-                )}
-              </div>
-            )}
+             {usuario?.rol === "cliente" && (
+                <button
+                  onClick={() => {
+                    setMostrarMenuPerfil(false);
+                    setMostrarModalProfesional(true);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                >
+                  <Briefcase size={15} className="text-zinc-400 dark:text-zinc-500" />
+                  Cambiar a profesional
+                </button>
+              )}
+            </div>
+          )}
           </div>
 
           <Button
@@ -790,6 +802,97 @@ const DashboardPage = () => {
         />
       )}
 
+      {mostrarModalProfesional && (
+        <Portal>
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate__animated animate__fadeIn animate__faster"
+            onClick={() => setMostrarModalProfesional(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl w-full max-w-md overflow-hidden animate__animated animate__zoomIn animate__faster"
+            >
+              {/* Header */}
+              <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                <span className="font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <Briefcase size={18} className="text-zinc-400 dark:text-zinc-500" />
+                  Convertirte en profesional
+                </span>
+                <button
+                  onClick={() => setMostrarModalProfesional(false)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <XCircle size={16} />
+                </button>
+              </div>
+
+              {/* Contenido */}
+              <div className="px-5 py-4 space-y-4 text-sm">
+                <p className="text-zinc-600 dark:text-zinc-300">
+                  Antes de continuar, ten en cuenta las condiciones del plan profesional:
+                </p>
+
+                <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
+                  <div className="px-4 py-3">
+                    <p className="font-medium text-zinc-800 dark:text-zinc-100">Prueba gratuita</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      Tendrás 15 días para usar todas las funciones sin costo.
+                    </p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="font-medium text-zinc-800 dark:text-zinc-100">Después de la prueba</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      Deberás pagar <strong>$15.000 COP</strong> al mes para seguir usando tu perfil profesional.
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                  Podrás cancelar en cualquier momento antes de que termine la prueba.
+                </p>
+              </div>
+
+              {errorCambioRol && (
+                <p className="px-5 text-xs text-red-500">{errorCambioRol}</p>
+              )}
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMostrarModalProfesional(false)}
+                  className="text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 dark:bg-transparent"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={cambiandoRol}
+                  onClick={async () => {
+                    setCambiandoRol(true);
+                    setErrorCambioRol(null);
+                    try {
+                      // Ya no llamamos activarProfesional() aquí.
+                      // Solo cerramos este modal y abrimos el de completar datos.
+                      setMostrarModalProfesional(false);
+                      setCambiandoRol(false);
+                      setMostrarCompletarPerfil(true);
+                    } catch (err) {
+                      setErrorCambioRol(err.message || "No se pudo continuar.");
+                      setCambiandoRol(false);
+                    }
+                  }}
+                  className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90"
+                >
+                  {cambiandoRol ? "Procesando..." : "Continuar"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+
       <ChatModal
         abierto={!!chatAbierto}
         conversacionId={chatAbierto?.conversacionId}
@@ -797,6 +900,17 @@ const DashboardPage = () => {
         nombreContacto={chatAbierto?.nombreContacto}
         onClose={() => setChatAbierto(null)}
       />
+
+      {(necesitaPerfil === true || mostrarCompletarPerfil) && (
+        <ModalRegistroProfesional
+          onCompleto={() => {
+            marcarCompleto();
+            setMostrarCompletarPerfil(false);
+            limpiarSesion();
+            navigate("/login", { replace: true });
+          }}
+        />
+      )}
 
     </div>
   );

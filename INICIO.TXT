@@ -7,6 +7,7 @@ python manage.py runserver 0.0.0.0:8006
 python manage.py runserver 8006
 
 # corer celery
+source venv/bin/activate
 celery -A albro worker -l info
 
 

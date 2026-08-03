@@ -17,6 +17,7 @@ import {
 import { getDepartamentos, getMunicipios, registrarProfesional } from "@/services/api";
 import ModalUbicacionMapa from "../pages/dashboard/ModalUbicacionMapa";
 
+
 // ─── Select con buscador ──────────────────────────────────────────────────────
 function SelectBuscable({ id, value, onChange, disabled, options, placeholder, cargandoTexto, cargando }) {
   const [abierto, setAbierto] = useState(false);
@@ -184,9 +185,14 @@ export default function ModalRegistroProfesional({ onCompleto }) {
         latitud: coordsExactas.latitud,
         longitud: coordsExactas.longitud,
       });
+
       setEstado({ cargando: false, error: null, exito: true });
-      // Pequeño delay para que el usuario vea el check antes de cerrar
-      setTimeout(() => window.location.reload(), 1200);
+
+      // Avisa al padre (DashboardPage) que el perfil se guardó con éxito.
+      // El padre decide qué hacer (cerrar sesión, redirigir, etc.)
+      setTimeout(() => {
+        onCompleto?.();
+      }, 1200);
     } catch (err) {
       setEstado({
         cargando: false,

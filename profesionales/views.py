@@ -35,6 +35,7 @@ import io
 import base64
 from django.conf import settings
 from .serializers import PreferenciasNotificacionSerializer
+from django.utils import timezone
 
 class RegistroProfesionalView(APIView):
     permission_classes = [IsAuthenticated]
@@ -939,3 +940,49 @@ class PreferenciasNotificacionView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+
+
+
+class ActivarProfesionalView(APIView):
+    """
+    Cambia el rol del usuario autenticado a 'profesional' e inicia
+    su periodo de prueba (trial), sin exigir todavía los datos de
+    negocio (nombre_local, dirección, etc). Esos se completan después
+    desde 'Configurar perfil'.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        usuario = request.user
+
+        if usuario.rol == 'profesional':
+            return Response(
+                {'detalle': 'El usuario ya es profesional.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        usuario.rol = 'profesional'
+        usuario.en_produccion = False  # arranca el trial de 15 días
+        usuario.save(update_fields=['rol', 'en_produccion'])
+
+        # Crea el perfil solo si todavía no existe (idempotente)
+        PerfilProfesional.objects.get_or_create(
+            usuario=usuario,
+            defaults={
+                'direccion': '',
+                'ubicacion': '',
+                'nombre_local': f'Negocio de {usuario.nombre}',
+                'descripcion': '',
+            },
+        )
+
+        return Response(
+            {
+                'mensaje': 'Cuenta activada como profesional. Tienes 15 días de prueba gratuita.',
+                'rol': usuario.rol,
+                'dias_restantes_trial': usuario.dias_restantes_trial,
+            },
+            status=status.HTTP_200_OK,
+        )

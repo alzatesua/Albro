@@ -94,6 +94,7 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial, onAbr
   const ZOOM_PAIS = 6; // zoom inicial mientras no sabemos la ubicación del cliente
   const CENTRO_DEFECTO = { lat: 4.5709, lng: -74.2973 }; // Colombia, centro aproximado
   const hoverTimeoutRef = useRef(null);
+  const profesionalesPorIdRef = useRef({}); 
   
 
   const mostrarToast = (mensaje, tipo = "success") => {
@@ -160,31 +161,7 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial, onAbr
         maxZoom: 19,
       }).addTo(map);
 
-      // Escucha clicks en los botones "Agendar" de los popups (delegación de eventos)
-      map.on('popupopen', (e) => {
-        const boton = e.popup.getElement()?.querySelector('.btn-agendar-popup');
-        if (boton) {
-          boton.addEventListener('click', () => {
-            const profesionalId = boton.dataset.profesionalId;
-            const entry = marcadoresProfesionalesRef.current[profesionalId];
-            if (entry) {
-              setProfesionalParaAgendar(entry.prof);
-            }
-            setModalAbierto(true);
-          });
-        }
 
-        const botonCatalogo = e.popup.getElement()?.querySelector('.btn-catalogo-popup');
-        if (botonCatalogo) {
-          botonCatalogo.addEventListener('click', () => {
-            const profesionalId = botonCatalogo.dataset.profesionalId;
-            const entry = marcadoresProfesionalesRef.current[profesionalId];
-            if (entry) {
-              abrirCatalogo(entry.prof);
-            }
-          });
-        }
-      });
 
       mapInstanceRef.current = map;
 
@@ -233,7 +210,6 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial, onAbr
         );
       }
     };
-
     iniciarMapa();
 
     return () => {
@@ -244,6 +220,145 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial, onAbr
       }
     };
   }, []);
+
+
+
+
+  const claveGrupo = (profesionales) =>
+  profesionales.map((p) => p.id).sort((a, b) => a - b).join("-");
+
+    // Distancia en metros entre dos coordenadas (fórmula de Haversine)
+  const distanciaMetros = (lat1, lng1, lat2, lng2) => {
+    const R = 6371000; // radio de la Tierra en metros
+    const rad = (x) => (x * Math.PI) / 180;
+    const dLat = rad(lat2 - lat1);
+    const dLng = rad(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  // Radio dentro del cual dos profesionales se consideran "el mismo local"
+  // Radio dentro del cual dos profesionales se consideran "el mismo local"
+const RADIO_AGRUPACION_METROS = Number(import.meta.env.VITE_RADIO_AGRUPACION_METROS) || 25;
+
+  const agruparPorUbicacion = (profesionales) => {
+    const puntos = (profesionales || [])
+      .map((prof) => {
+        const lat = parseFloat(prof.latitud);
+        const lng = parseFloat(prof.longitud);
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+        return { lat, lng, prof };
+      })
+      .filter(Boolean);
+
+    const grupos = [];
+
+    puntos.forEach(({ lat, lng, prof }) => {
+      // Busca un grupo existente cuyo centro esté a menos de RADIO_AGRUPACION_METROS
+      const grupoExistente = grupos.find(
+        (g) => distanciaMetros(g.lat, g.lng, lat, lng) <= RADIO_AGRUPACION_METROS
+      );
+
+      if (grupoExistente) {
+        grupoExistente.profesionales.push(prof);
+        // Recalcula el centro del grupo como el promedio (para que no "se corra" con cada nuevo miembro)
+        const n = grupoExistente.profesionales.length;
+        grupoExistente.lat = grupoExistente.lat + (lat - grupoExistente.lat) / n;
+        grupoExistente.lng = grupoExistente.lng + (lng - grupoExistente.lng) / n;
+      } else {
+        grupos.push({ lat, lng, profesionales: [prof] });
+      }
+    });
+
+    return grupos;
+  };
+
+  const crearAvatarGrupoIcon = ({ profesionales, mediaBaseUrl, seleccionado = false }) => {
+    const visibles = profesionales.slice(0, 3);
+    const restantes = profesionales.length - visibles.length;
+
+    const avatarSize = seleccionado ? 54 : 46; // más grandes que antes (eran ~24-26px)
+    const gap = 6;       // separación entre avatares
+    const padding = 8;   // margen interno de la cápsula
+
+    const totalItems = visibles.length + (restantes > 0 ? 1 : 0);
+    const anchoContenido = totalItems * avatarSize + (totalItems - 1) * gap;
+    const anchoTotal = anchoContenido + padding * 2;
+    const altoBurbuja = avatarSize + padding * 2;
+    const alturaTotal = altoBurbuja + 9; // + puntero triangular de abajo
+
+    const avatarHtml = (p) => {
+      const imagenUrl = p.imagen_perfil ? `${mediaBaseUrl}${p.imagen_perfil}` : null;
+      const iniciales = `${p.nombre?.[0] || ""}${p.apellido?.[0] || ""}`.toUpperCase();
+      const colorEstado = colorPorEstado(p.estado?.codigo);
+      return `
+        <div class="avatar-item" data-profesional-id="${p.id}" style="
+          position:relative;
+          width:${avatarSize}px;height:${avatarSize}px;
+          border-radius:50%;
+          background:${imagenUrl ? `url('${imagenUrl}') center/cover no-repeat` : "#3f3f46"};
+          border:2px solid #fff;
+          box-shadow:0 1px 3px rgba(0,0,0,0.25);
+          display:flex;align-items:center;justify-content:center;
+          cursor:pointer;
+          flex-shrink:0;
+        ">
+          ${!imagenUrl ? `<span style="color:#fff;font-family:sans-serif;font-weight:600;font-size:${Math.round(avatarSize * 0.36)}px">${iniciales}</span>` : ""}
+          <span style="
+            position:absolute; top:-2px; right:-2px;
+            width:13px;height:13px;border-radius:50%;
+            background:${colorEstado};
+            border:2px solid #fff;
+          "></span>
+        </div>
+      `;
+    };
+
+    const masHtml = restantes > 0 ? `
+      <div class="avatar-mas" style="
+        width:${avatarSize}px;height:${avatarSize}px;
+        border-radius:50%;
+        background:#3f3f46;
+        border:2px solid #fff;
+        box-shadow:0 1px 3px rgba(0,0,0,0.25);
+        display:flex;align-items:center;justify-content:center;
+        cursor:pointer;
+        flex-shrink:0;
+        color:#fff;font-family:sans-serif;font-weight:700;font-size:${Math.round(avatarSize * 0.3)}px;
+      ">+${restantes}</div>
+    ` : "";
+
+    return {
+      className: "",
+      html: `
+        <div class="${seleccionado ? "animate__animated animate__bounce" : ""}" style="position:relative;width:${anchoTotal}px;">
+          <div style="
+            display:flex;align-items:center;gap:${gap}px;
+            background:#18181b;
+            border-radius:9999px;
+            padding:${padding}px;
+            box-shadow:0 4px 12px rgba(0,0,0,0.32);
+          ">
+            ${visibles.map(avatarHtml).join("")}
+            ${masHtml}
+          </div>
+          <div style="
+            position:absolute; left:50%; bottom:-8px; transform:translateX(-50%);
+            width:0;height:0;
+            border-left:8px solid transparent;
+            border-right:8px solid transparent;
+            border-top:9px solid #18181b;
+          "></div>
+        </div>
+      `,
+      iconSize: [anchoTotal, alturaTotal],
+      iconAnchor: [anchoTotal / 2, alturaTotal],
+      popupAnchor: [0, -alturaTotal],
+    };
+  };
+
 
   const reintentarUbicacion = () => {
     if (!navigator.geolocation || !mapInstanceRef.current) return;
@@ -371,115 +486,244 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial, onAbr
     const L = (await import("leaflet")).default;
     const mediaBaseUrl = getMediaBaseUrl();
 
-    // Limpia marcadores previos
     Object.values(marcadoresProfesionalesRef.current).forEach((entry) => entry.marker.remove());
     marcadoresProfesionalesRef.current = {};
+    profesionalesPorIdRef.current = {};
 
-    (profesionales || []).forEach((prof, index) => {
-      const lat = parseFloat(prof.latitud);
-      const lng = parseFloat(prof.longitud);
-      if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+    const grupos = agruparPorUbicacion(profesionales);
 
-      const id = prof.id ?? index;
-      const iniciales = `${prof.nombre?.[0] || ""}${prof.apellido?.[0] || ""}`.toUpperCase();
-      const imagenUrl = prof.imagen_perfil ? `${mediaBaseUrl}${prof.imagen_perfil}` : null;
-      const esSeleccionado = id === profesionalSeleccionadoId;
-      const estadoCodigo = prof.estado?.codigo;
-
-      const avatarPinIcon = L.divIcon(
-        crearAvatarPinIcon({ imagenUrl, iniciales, id, seleccionado: esSeleccionado, estadoCodigo })
-      );
-
-      const marker = L.marker([lat, lng], { icon: avatarPinIcon })
-        .addTo(mapInstanceRef.current)
-        .bindPopup(
-          `
-          <div
-            class="popup-profesional"
-            style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b"
-          >
-            <strong>${prof.nombre} ${prof.apellido}</strong><br/>
-            <span style="color:${colorPorEstado(estadoCodigo)};font-weight:600;font-size:11px">
+    // ── Fila HTML para un solo profesional dentro de cualquier popup ──
+    const filaProfesional = (prof) => {
+      const noDisponible = prof.estado?.codigo === "no_disponible";
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0">
+          <div style="min-width:0">
+            <strong style="font-size:13px">${prof.nombre} ${prof.apellido}</strong><br/>
+            <span style="color:${colorPorEstado(prof.estado?.codigo)};font-weight:600;font-size:11px">
               ${prof.estado?.nombre || "Sin estado"}
             </span>
-            <button
-              class="btn-catalogo-popup"
-              data-profesional-id="${prof.id}"
-              style="
-                display:block;
-                margin-top:8px;
-                width:100%;
-                background:#fff;
-                color:#18181b;
-                border:1px solid #d4d4d8;
-                border-radius:9999px;
-                padding:6px 12px;
-                font-size:12px;
-                font-weight:500;
-                cursor:pointer;
-              "
-            >
-              Ver catálogo
+          </div>
+          <div style="display:flex;gap:4px;shrink:0">
+            <button class="btn-catalogo-popup" data-profesional-id="${prof.id}"
+              style="background:#fff;color:#18181b;border:1px solid #d4d4d8;border-radius:9999px;padding:5px 9px;font-size:11px;cursor:pointer;white-space:nowrap">
+              Catálogo
             </button>
-            <button
-              class="btn-agendar-popup"
-              data-profesional-id="${prof.id}"
-              style="
-                display:block;
-                margin-top:6px;
-                width:100%;
-                background:#18181b;
-                color:#fff;
-                border:none;
-                border-radius:9999px;
-                padding:6px 12px;
-                font-size:12px;
-                font-weight:500;
-                cursor:pointer;
-              "
-            >
-              Agendar cita
+            <button class="btn-agendar-popup" data-profesional-id="${prof.id}" ${noDisponible ? "disabled" : ""}
+              style="background:${noDisponible ? "#e4e4e7" : "#18181b"};color:${noDisponible ? "#a1a1aa" : "#fff"};border:none;border-radius:9999px;padding:5px 9px;font-size:11px;cursor:${noDisponible ? "not-allowed" : "pointer"};white-space:nowrap">
+              Agendar
             </button>
-            <button
-              class="btn-mensaje-popup"
-              data-profesional-id="${prof.id}"
-              style="
-                display:block;
-                margin-top:6px;
-                width:100%;
-                background:#fff;
-                color:#18181b;
-                border:1px solid #d4d4d8;
-                border-radius:9999px;
-                padding:6px 12px;
-                font-size:12px;
-                font-weight:500;
-                cursor:pointer;
-              "
-            >
-              Enviar mensaje
+            <button class="btn-mensaje-popup" data-profesional-id="${prof.id}"
+              style="background:#fff;color:#18181b;border:1px solid #d4d4d8;border-radius:9999px;padding:5px 9px;font-size:11px;cursor:pointer;white-space:nowrap">
+              Chat
             </button>
           </div>
-          `,
-          { closeButton: false, autoPan: false }
-        );
+        </div>
+      `;
+    };
 
-      // ── Abrir con hover, cerrar con un pequeño delay ──────────────────────
-      marker.on("mouseover", () => {
+    // ── Conecta los botones de acción del contenido actual del popup ──
+    const conectarBotones = (popupEl) => {
+      if (!popupEl) return;
+
+      popupEl.querySelectorAll(".btn-agendar-popup").forEach((boton) => {
+        boton.addEventListener("click", () => {
+          const id = boton.dataset.profesionalId;
+          const entry = profesionalesPorIdRef.current[id];
+          if (!entry) return;
+          if (entry.estadoCodigo === "no_disponible") {
+            mostrarToast("Este profesional no está disponible en este momento", "error");
+            return;
+          }
+          setProfesionalParaAgendar(entry.prof);
+          setModalAbierto(true);
+        });
+      });
+
+      popupEl.querySelectorAll(".btn-catalogo-popup").forEach((boton) => {
+        boton.addEventListener("click", () => {
+          const id = boton.dataset.profesionalId;
+          const entry = profesionalesPorIdRef.current[id];
+          if (entry) abrirCatalogo(entry.prof);
+        });
+      });
+
+      popupEl.querySelectorAll(".btn-mensaje-popup").forEach((boton) => {
+        boton.addEventListener("click", () => {
+          const id = boton.dataset.profesionalId;
+          const entry = profesionalesPorIdRef.current[id];
+          if (entry) onAbrirChat?.(entry.prof);
+        });
+      });
+    };
+
+    // ── Engancha hover/click a cada avatar individual dentro de un pin de grupo ──
+    const attachAvatarListeners = (marker, profsDelGrupo) => {
+      const el = marker.getElement();
+      if (!el) return;
+
+      const programarCierre = () => {
+        hoverTimeoutRef.current = setTimeout(() => marker.closePopup(), 250);
+      };
+
+      const abrirPopupDe = (html) => {
         if (hoverTimeoutRef.current) {
           clearTimeout(hoverTimeoutRef.current);
           hoverTimeoutRef.current = null;
         }
+        marker.setPopupContent(html);
         marker.openPopup();
+      };
+
+      const htmlDe = (prof) => `
+        <div class="popup-profesional" style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b;min-width:190px">
+          ${filaProfesional(prof)}
+        </div>
+      `;
+
+      const htmlCompleto = `
+        <div class="popup-profesional" style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b;max-height:260px;overflow-y:auto;min-width:230px">
+          <strong style="font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:0.03em">
+            ${profsDelGrupo.length} profesionales en este local
+          </strong>
+          ${profsDelGrupo.map(filaProfesional).join("")}
+        </div>
+      `;
+
+      // Resuelve qué se debe abrir según el nodo tocado/clickeado
+      const resolverYAbrir = (nodo) => {
+        const avatarNodo = nodo.closest?.(".avatar-item");
+        if (avatarNodo) {
+          const id = avatarNodo.getAttribute("data-profesional-id");
+          const prof = profsDelGrupo.find((p) => String(p.id) === String(id));
+          if (prof) abrirPopupDe(htmlDe(prof));
+          return true;
+        }
+        const masNodo = nodo.closest?.(".avatar-mas");
+        if (masNodo) {
+          abrirPopupDe(htmlCompleto);
+          return true;
+        }
+        return false;
+      };
+
+      // ── Delegación a nivel del ícono completo (funciona igual en mouse y táctil) ──
+
+      // Desktop: hover sobre cada avatar
+      el.addEventListener("mouseover", (e) => {
+        resolverYAbrir(e.target);
+      });
+      el.addEventListener("mouseout", (e) => {
+        // Solo programa cierre si el mouse realmente salió del ícono completo
+        if (!el.contains(e.relatedTarget)) {
+          programarCierre();
+        }
       });
 
-      marker.on("mouseout", () => {
-        hoverTimeoutRef.current = setTimeout(() => {
-          marker.closePopup();
-        }, 250);
+      // Táctil y click universal: usamos touchend + click, evitando el doble disparo
+      let manejadoPorTouch = false;
+
+      el.addEventListener(
+        "touchend",
+        (e) => {
+          const abierto = resolverYAbrir(e.target);
+          if (abierto) {
+            manejadoPorTouch = true;
+            e.preventDefault(); // evita el "click fantasma" posterior en móviles
+            e.stopPropagation();
+            // Resetea la bandera poco después para no bloquear futuros clicks reales
+            setTimeout(() => { manejadoPorTouch = false; }, 400);
+          }
+        },
+        { passive: false }
+      );
+
+      el.addEventListener("click", (e) => {
+        if (manejadoPorTouch) return; // ya se manejó por touchend, evita doble apertura/cierre
+        const abierto = resolverYAbrir(e.target);
+        if (abierto) e.stopPropagation();
+      });
+    };
+
+    grupos.forEach((grupo) => {
+      const { lat, lng, profesionales: profsDelGrupo } = grupo;
+      const esGrupo = profsDelGrupo.length > 1;
+      const groupKey = claveGrupo(profsDelGrupo);
+
+      profsDelGrupo.forEach((p) => {
+        profesionalesPorIdRef.current[p.id] = { prof: p, estadoCodigo: p.estado?.codigo };
       });
 
-      // Si el mouse entra al popup (para hacer click en "Agendar"), cancela el cierre
+      const icon = esGrupo
+        ? L.divIcon(crearAvatarGrupoIcon({ profesionales: profsDelGrupo, mediaBaseUrl }))
+        : L.divIcon(
+            crearAvatarPinIcon({
+              imagenUrl: profsDelGrupo[0].imagen_perfil ? `${mediaBaseUrl}${profsDelGrupo[0].imagen_perfil}` : null,
+              iniciales: `${profsDelGrupo[0].nombre?.[0] || ""}${profsDelGrupo[0].apellido?.[0] || ""}`.toUpperCase(),
+              id: profsDelGrupo[0].id,
+              seleccionado: profsDelGrupo[0].id === profesionalSeleccionadoId,
+              estadoCodigo: profsDelGrupo[0].estado?.codigo,
+            })
+          );
+
+      const marker = L.marker([lat, lng], { icon }).addTo(mapInstanceRef.current);
+
+      if (esGrupo) {
+        // El contenido se rellena dinámicamente según qué avatar se hover/clickee
+        marker.bindPopup("", { closeButton: false, autoPan: false });
+        attachAvatarListeners(marker, profsDelGrupo);
+      } else {
+        const popupHtml = `
+          <div class="popup-profesional" style="font-family:sans-serif;padding:4px 8px;font-size:13px;color:#18181b;min-width:190px">
+            ${filaProfesional(profsDelGrupo[0])}
+          </div>
+        `;
+        marker.bindPopup(popupHtml, { closeButton: false, autoPan: false });
+
+        // Desktop: hover abre/cierra el popup
+        marker.on("mouseover", () => {
+          if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = null;
+          }
+          marker.openPopup();
+        });
+        marker.on("mouseout", () => {
+          hoverTimeoutRef.current = setTimeout(() => marker.closePopup(), 250);
+        });
+
+        // Táctil: touchend abre el popup y evita el click fantasma posterior
+        const el = marker.getElement();
+        if (el) {
+          let manejadoPorTouch = false;
+
+          el.addEventListener(
+            "touchend",
+            (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              manejadoPorTouch = true;
+              if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+                hoverTimeoutRef.current = null;
+              }
+              marker.openPopup();
+              setTimeout(() => { manejadoPorTouch = false; }, 400);
+            },
+            { passive: false }
+          );
+
+          el.addEventListener("click", (e) => {
+            if (manejadoPorTouch) {
+              e.stopPropagation();
+              return;
+            }
+            marker.openPopup();
+          });
+        }
+      }
+
+      // Común a ambos: mantener el popup abierto si el mouse entra a él,
+      // y conectar los botones de acción cada vez que se abre.
       marker.on("popupopen", (e) => {
         const popupEl = e.popup.getElement();
         if (!popupEl) return;
@@ -490,54 +734,18 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial, onAbr
             hoverTimeoutRef.current = null;
           }
         });
-
         popupEl.addEventListener("mouseleave", () => {
-          hoverTimeoutRef.current = setTimeout(() => {
-            marker.closePopup();
-          }, 250);
+          hoverTimeoutRef.current = setTimeout(() => marker.closePopup(), 250);
         });
 
-        // Reconecta el botón "Agendar cita" (igual que ya lo hacías en popupopen del mapa)
-        const boton = popupEl.querySelector(".btn-agendar-popup");
-        if (boton) {
-          boton.addEventListener("click", () => {
-            const profesionalId = boton.dataset.profesionalId;
-            const entry = marcadoresProfesionalesRef.current[profesionalId];
-            if (entry) {
-              setProfesionalParaAgendar(entry.prof);
-            }
-            setModalAbierto(true);
-          });
-        }
-
-        // Conecta el botón "Ver catálogo"
-        // Conecta el botón "Ver catálogo"
-        const botonCatalogo = popupEl.querySelector(".btn-catalogo-popup");
-        if (botonCatalogo) {
-          botonCatalogo.addEventListener("click", () => {
-            const profesionalId = botonCatalogo.dataset.profesionalId;
-            const entry = marcadoresProfesionalesRef.current[profesionalId];
-            if (entry) {
-              abrirCatalogo(entry.prof);
-            }
-          });
-        }
-
-        // Conecta el botón "Enviar mensaje"
-        const botonMensaje = popupEl.querySelector(".btn-mensaje-popup");
-        if (botonMensaje) {
-          botonMensaje.addEventListener("click", () => {
-            const profesionalId = botonMensaje.dataset.profesionalId;
-            const entry = marcadoresProfesionalesRef.current[profesionalId];
-            if (entry) {
-              onAbrirChat?.(entry.prof);
-            }
-          });
-        }
+        conectarBotones(popupEl);
       });
 
-      // Guarda el marker JUNTO con los datos crudos para poder regenerar el ícono luego
-      marcadoresProfesionalesRef.current[id] = { marker, prof, iniciales, imagenUrl, estadoCodigo };
+      marcadoresProfesionalesRef.current[groupKey] = {
+        marker,
+        profesionales: profsDelGrupo,
+        esGrupo,
+      };
     });
   };
   const irAProfesional = async (prof) => {
@@ -545,50 +753,18 @@ const MapaSection = ({ profesionalIdInicial, onConsumirProfesionalInicial, onAbr
     const lng = parseFloat(prof.longitud);
     if (Number.isNaN(lat) || Number.isNaN(lng) || !mapInstanceRef.current) return;
 
-    const L = (await import("leaflet")).default;
-
-    // Restaura el ícono normal del que estaba seleccionado antes
-    if (profesionalSeleccionadoId != null) {
-      const anterior = marcadoresProfesionalesRef.current[profesionalSeleccionadoId];
-      if (anterior) {
-        anterior.marker.setIcon(
-          L.divIcon(
-            crearAvatarPinIcon({
-              imagenUrl: anterior.imagenUrl,
-              iniciales: anterior.iniciales,
-              id: profesionalSeleccionadoId,
-              seleccionado: false,
-              estadoCodigo: anterior.estadoCodigo,
-            })
-          )
-        );
-      }
-    }
-
-    // Resalta el nuevo seleccionado
-    const actual = marcadoresProfesionalesRef.current[prof.id];
-    if (actual) {
-      actual.marker.setIcon(
-        L.divIcon(
-          crearAvatarPinIcon({
-            imagenUrl: actual.imagenUrl,
-            iniciales: actual.iniciales,
-            id: prof.id,
-            seleccionado: true,
-            estadoCodigo: actual.estadoCodigo,
-          })
-        )
-      );
-      actual.marker.openPopup();
-    }
+    // Busca, entre todos los grupos pintados, cuál contiene a este profesional
+    const entry = Object.values(marcadoresProfesionalesRef.current).find((e) =>
+      e.profesionales.some((p) => p.id === prof.id)
+    );
 
     setProfesionalSeleccionadoId(prof.id);
     mapInstanceRef.current.setView([lat, lng], 17, { animate: true });
+    entry?.marker.openPopup();
 
     setResultadosBusqueda([]);
     setTextoBusqueda("");
   };
-
 
 
   return (

@@ -89,9 +89,12 @@ const HORARIOS_BASE = {
 const getMediaUrl = (ruta) => {
   if (!ruta) return null;
   if (/^https?:\/\//i.test(ruta)) return ruta;
-  const base = import.meta.env.VITE_API_URL || "http://localhost:8006/api";
+  const base = import.meta.env.VITE_API_URL || "https://albro.app/api";
   const host = base.replace(/\/api\/?$/, "");
+  
   return `${host}${ruta}`;
+
+  
 };
 
 // Convierte el array horarios_atencion de la API en el objeto que usa el estado local
@@ -125,36 +128,36 @@ const SelectorHora = ({ value, onChange }) => {
   const cambiarPeriodo = (nuevoPeriodo) => onChange(a24Horas(hora12, minuto, nuevoPeriodo));
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       <select
         value={hora12}
         onChange={(e) => cambiarHora(Number(e.target.value))}
-        className="px-3.5 py-2.5 min-w-[68px] rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10"
+        className="px-1 sm:px-3.5 py-1.5 sm:py-2.5 min-w-[36px] sm:min-w-[68px] rounded-md sm:rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10"
       >
         {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
           <option key={n} value={n}>{n}</option>
         ))}
       </select>
 
-      <span className="text-zinc-400 text-sm">:</span>
+      <span className="text-zinc-400 text-xs sm:text-sm">:</span>
 
       <select
         value={minuto}
         onChange={(e) => cambiarMinuto(Number(e.target.value))}
-        className="px-3.5 py-2.5 min-w-[68px] rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10"
+        className="px-1 sm:px-3.5 py-1.5 sm:py-2.5 min-w-[36px] sm:min-w-[68px] rounded-md sm:rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10"
       >
         {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
           <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
         ))}
       </select>
 
-      <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0">
+      <div className="flex rounded-md sm:rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0">
         {["AM", "PM"].map((p) => (
           <button
             key={p}
             type="button"
             onClick={() => cambiarPeriodo(p)}
-            className={`px-4 py-2.5 min-w-[52px] text-xs font-semibold transition-colors ${
+            className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 min-w-[28px] sm:min-w-[52px] text-[10px] sm:text-xs font-semibold transition-colors ${
               periodo === p
                 ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
                 : "bg-transparent text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -977,7 +980,7 @@ return (
                   Días activos
                 </p>
                 <div className="relative">
-                 <button
+                <button
                   type="button"
                   onClick={() => setAgregandoHorario((v) => !v)}
                   disabled={diasInactivos.length === 0}
@@ -987,7 +990,7 @@ return (
                 </button>
 
                   {agregandoHorario && diasInactivos.length > 0 && (
-                    <div className="absolute right-0 top-full mt-2 z-10 w-40 p-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-lg">
+                    <div className="absolute right-0 top-full mt-2 z-50 w-40 p-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-lg">
                       {diasInactivos.map(({ key, label }) => (
                         <button
                           key={key}
@@ -1000,6 +1003,7 @@ return (
                       ))}
                     </div>
                   )}
+                  
                 </div>
               </div>
 
@@ -1016,51 +1020,56 @@ return (
                   return (
                     <div key={key} className="space-y-1">
                       <div
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+                        className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border transition-colors ${
                           valido
                             ? "bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700"
                             : "bg-red-50 dark:bg-red-500/10 border-red-300 dark:border-red-500/40"
                         }`}
                       >
-                        <span className="w-24 shrink-0 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                          {label}
-                        </span>
+                        <div className="flex items-center justify-between sm:contents">
+                          <span className="sm:w-24 sm:shrink-0 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                            {label}
+                          </span>
 
-                        <div className="flex items-center gap-2 flex-1 justify-end flex-wrap sm:flex-nowrap">
+                          {/* Botón eliminar: en móvil va arriba a la derecha, junto al nombre del día */}
+                          <button
+                            type="button"
+                            onClick={() => desactivarDiaHorario(key)}
+                            className="sm:hidden shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                            aria-label={`Quitar ${label}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-center sm:justify-end gap-1.5 sm:gap-2 flex-1">
                           <SelectorHora
                             value={h.inicio}
                             onChange={(v) => actualizarHorario(key, "inicio", v)}
                           />
-                          <span className="text-zinc-400 text-sm">–</span>
+                          <span className="text-zinc-400 text-xs sm:text-sm shrink-0">–</span>
                           <SelectorHora
                             value={h.fin}
                             onChange={(v) => actualizarHorario(key, "fin", v)}
                           />
                         </div>
 
+                        {/* Botón eliminar en desktop, a la derecha de todo */}
                         <button
                           type="button"
                           onClick={() => desactivarDiaHorario(key)}
-                          className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                          className="hidden sm:flex shrink-0 w-9 h-9 rounded-lg items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                           aria-label={`Quitar ${label}`}
                         >
                           <Trash2 size={15} />
                         </button>
                       </div>
-
-                      {/* Vista previa en 12h: aquí el usuario nota si puso 04 en vez de 16 
-                      <p className={`text-xs px-1 ${valido ? "text-zinc-400 dark:text-zinc-500" : "text-red-500 dark:text-red-400 font-medium"}`}>
-                        {valido
-                          ? `${formatearHora12h(h.inicio)} – ${formatearHora12h(h.fin)}`
-                          : `La hora de cierre (${formatearHora12h(h.fin) || "--"}) debe ser después de la de apertura (${formatearHora12h(h.inicio) || "--"})`}
-                      </p>*/}
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
-
    
 
           {/* Guardar */}

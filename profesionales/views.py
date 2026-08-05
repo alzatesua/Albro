@@ -894,7 +894,7 @@ class MiCodigoQRView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        frontend_url = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:5173').rstrip('/')
+        frontend_url = getattr(settings, 'FRONTEND_BASE_URL', 'https://albro.app/').rstrip('/')
         link = f"{frontend_url}/agendar/{perfil.id}"
 
         qr = qrcode.QRCode(box_size=8, border=2)

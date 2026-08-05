@@ -167,6 +167,23 @@ export default function ModalRegistroProfesional({ onCompleto }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!form.nombre_local.trim()) {
+      setEstado((p) => ({ ...p, error: "El nombre del local es obligatorio." }));
+      return;
+    }
+    if (!form.descripcion.trim()) {
+      setEstado((p) => ({ ...p, error: "La descripción es obligatoria." }));
+      return;
+    }
+    if (!form.departamento_id) {
+      setEstado((p) => ({ ...p, error: "Selecciona un departamento." }));
+      return;
+    }
+    if (!form.municipio_id) {
+      setEstado((p) => ({ ...p, error: "Selecciona un municipio." }));
+      return;
+    }
     if (!coordsExactas.latitud || !coordsExactas.longitud) {
       setEstado((p) => ({
         ...p,
@@ -245,7 +262,6 @@ export default function ModalRegistroProfesional({ onCompleto }) {
                   placeholder="Barbería JP"
                   value={form.nombre_local}
                   onChange={handleChange}
-                  required
                   className="pl-9 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600
                              focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white
                              hover:border-zinc-500 transition-colors"
@@ -267,7 +283,6 @@ export default function ModalRegistroProfesional({ onCompleto }) {
                   placeholder="Especialista en cortes, barba y color…"
                   value={form.descripcion}
                   onChange={handleChange}
-                  required
                   className="w-full rounded-md border border-zinc-700 bg-zinc-800 pl-9 pr-3 py-2
                              text-sm text-white placeholder:text-zinc-600 resize-none
                              focus:outline-none focus:ring-1 focus:ring-white focus:border-white

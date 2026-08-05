@@ -22,6 +22,14 @@ pip freeze > requirements.txt
 
 
 
+
+
+
+CARGAR DEPARTAMENTOS Y MUNICIPIOS
+python manage.py cargar_ubicaciones
+
+
+
 ------------------- MANEJO DE PAGOS MANUALES -------------------
 actualmente
 python manage.py registrar_pago test@gmail.com 50000

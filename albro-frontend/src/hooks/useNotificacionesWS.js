@@ -40,9 +40,11 @@ export function useNotificacionesWS({ usuario, onNuevaNotificacion, onCitaActual
       const { ticket } = await getWsTicket();
       if (!montadoRef.current) return;
 
-      const socket = new WebSocket(`${WS_BASE_URL}/ws/citas/?ticket=${ticket}`);
+      // quita cualquier barra final de WS_BASE_URL para evitar duplicados
+      const base = WS_BASE_URL.replace(/\/+$/, "");
+      const socket = new WebSocket(`${base}/ws/citas/?ticket=${ticket}`);
       socketRef.current = socket;
-
+      
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);

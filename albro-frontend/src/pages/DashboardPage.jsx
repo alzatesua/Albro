@@ -48,9 +48,9 @@ const SECCION_STORAGE_KEY = "dashboard_seccion_activa";
 // ─── Menús por rol ────────────────────────────────────────────────────────────
 const menuCliente = [
   { icono: Map,           label: "Mapa",            key: "mapa" },
-  { icono: Briefcase,     label: "Servicios",       key: "servicios" },
+  //{ icono: Briefcase,     label: "Servicios",       key: "servicios" },
   { icono: CalendarClock, label: "Mis citas",       key: "misCitas" },
-  { icono: UserCheck,     label: "Ser profesional", key: "profesional" },
+  //{ icono: UserCheck,     label: "Ser profesional", key: "profesional" },
 ];
 
 const menuProfesional = [
@@ -63,16 +63,17 @@ const menuProfesional = [
 
 // ─── Dock item ────────────────────────────────────────────────────────────────
 const DockItem = ({ icono: Icono, label, activo, onClick, mouseX, itemRef }) => {
-  const [size, setSize] = useState(48);
+  const [size, setSize] = useState(() => (window.innerWidth < 640 ? 42 : 48));
   const [hover, setHover] = useState(false);
 
   useEffect(() => {
-    if (mouseX === null || !itemRef?.current) { setSize(48); return; }
+    if (mouseX === null || !itemRef?.current) { setSize(window.innerWidth < 640 ? 42 : 48); return; }
     const rect = itemRef.current.getBoundingClientRect();
     const center = rect.left + rect.width / 2;
     const dist = Math.abs(mouseX - center);
-    if (dist < 120) setSize(48 * (1 + (1 - dist / 120) * 0.85));
-    else setSize(48);
+    const base = window.innerWidth < 640 ? 42 : 48;
+    if (dist < 120) setSize(base * (1 + (1 - dist / 120) * 0.85));
+    else setSize(base);
   }, [mouseX, itemRef]);
 
   const headerRef = useRef(null);
@@ -86,7 +87,7 @@ const DockItem = ({ icono: Icono, label, activo, onClick, mouseX, itemRef }) => 
   }, []);
 
   return (
-    <div className="relative flex flex-col items-center justify-end" style={{ height: 80 }}>
+    <div className="relative flex flex-col items-center justify-end" style={{ height: 56 }}>
       {hover && (
         <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs px-3 py-1 rounded-lg whitespace-nowrap shadow-lg pointer-events-none z-50">
           {label}
@@ -107,7 +108,7 @@ const DockItem = ({ icono: Icono, label, activo, onClick, mouseX, itemRef }) => 
       >
         <Icono style={{ width: size * 0.42, height: size * 0.42 }} />
       </button>
-      <div className={`mt-1.5 w-1 h-1 rounded-full ${activo ? "bg-zinc-900 dark:bg-white" : "bg-transparent"}`} />
+      <div className={`mt-1 w-1 h-1 rounded-full ${activo ? "bg-zinc-900 dark:bg-white" : "bg-transparent"}`} />
     </div>
   );
 };
@@ -118,9 +119,12 @@ const Dock = ({ menu, seccionActiva, setSeccionActiva }) => {
   const refs = menu.map(() => useRef(null));
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30">
+    <div
+      className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 max-w-[95vw]"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <div
-        className="flex items-end gap-3 px-6 py-3 rounded-2xl bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-zinc-200/60 dark:border-zinc-700/60 shadow-2xl"
+        className="flex items-end gap-2 sm:gap-3 px-3 sm:px-6 py-1.5 sm:py-2 rounded-2xl bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-zinc-200/60 dark:border-zinc-700/60 shadow-2xl overflow-x-auto"
         onMouseMove={(e) => setMouseX(e.clientX)}
         onMouseLeave={() => setMouseX(null)}
       >
@@ -601,27 +605,27 @@ const DashboardPage = () => {
       {/* ─────────────────────────────────────── */}
 
       {/* Navbar */}
-      <header className="bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-zinc-900 dark:bg-white rounded-lg flex items-center justify-center">
+      <header className="bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm gap-2">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 bg-zinc-900 dark:bg-white rounded-lg flex items-center justify-center shrink-0">
             <Scissors size={18} className="text-white dark:text-zinc-900" />
           </div>
           <span className="text-zinc-900 dark:text-white text-lg font-bold">Albro</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <button
             onClick={toggleDark}
-            className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors shrink-0"
           >
-            {dark ? <Sun size={20} /> : <Moon size={20} />}
+            {dark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
           {/* ── Campana de notificaciones ── */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={abrirNotificaciones}
-              className="relative w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             >
               <div
                 className={`relative flex items-center justify-center ${
@@ -636,12 +640,12 @@ const DashboardPage = () => {
             </button>
 
             {mostrarNotificaciones && (
-              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
+              <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
                 <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
                   <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Notificaciones</span>
                 </div>
 
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
                   {/* ── No leídas ── */}
                   {cargandoNotificaciones ? (
                     <div className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
@@ -726,21 +730,21 @@ const DashboardPage = () => {
             <button
               type="button"
               onClick={() => setMostrarMenuPerfil((v) => !v)}
-              className="flex items-center gap-2 text-sm rounded-xl px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="flex items-center gap-2 text-sm rounded-xl px-1 sm:px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
-              <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
                 <User size={18} className="text-zinc-500 dark:text-zinc-400" />
               </div>
-              <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              <span className="hidden md:inline font-medium text-zinc-800 dark:text-zinc-200">
                 {usuario?.nombre} {usuario?.apellido}
               </span>
-              <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full capitalize">
+              <span className="hidden md:inline text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full capitalize">
                 {usuario?.rol}
               </span>
             </button>
 
             {mostrarMenuPerfil && (
-            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
+            <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
               {usuario?.rol === "profesional" && (
                 <button
                   onClick={irAConfigurarPerfil}
@@ -751,7 +755,7 @@ const DashboardPage = () => {
                 </button>
               )}
 
-             {usuario?.rol === "cliente" && (
+            {usuario?.rol === "cliente" && (
                 <button
                   onClick={() => {
                     setMostrarMenuPerfil(false);
@@ -770,28 +774,30 @@ const DashboardPage = () => {
           <Button
             variant="outline" size="sm"
             onClick={() => { limpiarSesion(); navigate("/login"); }}
-            className="text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 border-zinc-200 dark:border-zinc-700 dark:bg-transparent"
+            className="text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 border-zinc-200 dark:border-zinc-700 dark:bg-transparent px-2 sm:px-3"
           >
-            <LogOut size={18} className="mr-1.5" />
-            Salir
+            <LogOut size={18} className="sm:mr-1.5" />
+            <span className="hidden sm:inline">Salir</span>
           </Button>
         </div>
       </header>
 
       {/* Contenido */}
-      <main className={seccionActiva === "mapa" ? "flex-1" : "bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-8 min-h-64"}>
-        {seccionActiva !== "mapa" && <div className="mb-8" />}
+      <main className={seccionActiva === "mapa" ? "flex-1" : "bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-4 sm:p-8 min-h-64"}>
+        {seccionActiva !== "mapa" && <div className="mb-4 sm:mb-8" />}
 
-        <div className={seccionActiva === "mapa" ? "" : "bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-8 min-h-64"}>
-          {secciones[seccionActiva]}
+        <div className={seccionActiva === "mapa" ? "" : "bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-4 sm:p-8 min-h-64"}>
+          {esProfesional && necesitaPerfil !== false ? (
+            <div className="flex items-center justify-center py-24 text-sm text-zinc-400 dark:text-zinc-500">
+              {necesitaPerfil === null ? "Verificando tu perfil..." : "Completa tu perfil para continuar"}
+            </div>
+          ) : (
+            secciones[seccionActiva]
+          )}
         </div>
       </main>
 
       <Dock menu={menu} seccionActiva={seccionActiva} setSeccionActiva={setSeccionActiva} />
-
-      {necesitaPerfil === true && (
-        <ModalRegistroProfesional onCompleto={marcarCompleto} />
-      )}
 
       {/* Modal para calificar profesional después de una cita completada */}
       {citaParaCalificar && (
@@ -813,7 +819,7 @@ const DashboardPage = () => {
               className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl w-full max-w-md overflow-hidden animate__animated animate__zoomIn animate__faster"
             >
               {/* Header */}
-              <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+              <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                 <span className="font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
                   <Briefcase size={18} className="text-zinc-400 dark:text-zinc-500" />
                   Convertirte en profesional
@@ -827,7 +833,7 @@ const DashboardPage = () => {
               </div>
 
               {/* Contenido */}
-              <div className="px-5 py-4 space-y-4 text-sm">
+              <div className="px-4 sm:px-5 py-3 sm:py-4 space-y-4 text-sm">
                 <p className="text-zinc-600 dark:text-zinc-300">
                   Antes de continuar, ten en cuenta las condiciones del plan profesional:
                 </p>
@@ -842,7 +848,7 @@ const DashboardPage = () => {
                   <div className="px-4 py-3">
                     <p className="font-medium text-zinc-800 dark:text-zinc-100">Después de la prueba</p>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                      Deberás pagar <strong>$15.000 COP</strong> al mes para seguir usando tu perfil profesional.
+                      Deberás pagar <strong>$30.000 COP</strong> al mes para seguir usando tu perfil profesional.
                     </p>
                   </div>
                 </div>
@@ -853,11 +859,11 @@ const DashboardPage = () => {
               </div>
 
               {errorCambioRol && (
-                <p className="px-5 text-xs text-red-500">{errorCambioRol}</p>
+                <p className="px-4 sm:px-5 text-xs text-red-500">{errorCambioRol}</p>
               )}
 
               {/* Footer */}
-              <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-2">
+              <div className="px-4 sm:px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -873,8 +879,6 @@ const DashboardPage = () => {
                     setCambiandoRol(true);
                     setErrorCambioRol(null);
                     try {
-                      // Ya no llamamos activarProfesional() aquí.
-                      // Solo cerramos este modal y abrimos el de completar datos.
                       setMostrarModalProfesional(false);
                       setCambiandoRol(false);
                       setMostrarCompletarPerfil(true);
@@ -892,7 +896,6 @@ const DashboardPage = () => {
           </div>
         </Portal>
       )}
-
       <ChatModal
         abierto={!!chatAbierto}
         conversacionId={chatAbierto?.conversacionId}

@@ -644,29 +644,29 @@ useEffect(() => {
               )}
 
 
-              <div className="flex flex-col items-center gap-2 mb-4 relative">
-                <button
-                  onClick={() => {
-                    fechaInputRef.current?.showPicker?.();
-                  }}
-                  className="flex items-center gap-2 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
-                >
-                  <CalendarDays size={16} />
-                  Elegir otra fecha
-                </button>
-
+             <div className="flex flex-col items-center gap-2 mb-4">
+              <div className="relative inline-flex items-center gap-2 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors">
+                <CalendarDays size={16} className="pointer-events-none" />
+                <span className="pointer-events-none">Elegir otra fecha</span>
                 <input
                   ref={fechaInputRef}
                   type="date"
                   value={fecha}
                   min={hoyISO()}
                   onChange={(e) => setFecha(e.target.value)}
-                  className="absolute opacity-0 pointer-events-none w-0 h-0"
-                  tabIndex={-1}
+                  onClick={(e) => {
+                    // Mejora para desktop (Firefox/Safari a veces no abren con el clic nativo)
+                    try {
+                      e.currentTarget.showPicker?.();
+                    } catch (err) {
+                      // Si ya está abierto o no es soportado, no hacemos nada
+                    }
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
               </div>
-
-             
+            </div>
+                          
 
               {fecha && cargandoAgenda && (
                 <div className="flex items-center justify-center gap-2 text-sm text-zinc-400 dark:text-zinc-500 py-6">

@@ -496,24 +496,24 @@ const RADIO_AGRUPACION_METROS = Number(import.meta.env.VITE_RADIO_AGRUPACION_MET
     const filaProfesional = (prof) => {
       const noDisponible = prof.estado?.codigo === "no_disponible";
       return `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0">
+        <div style="display:flex;flex-direction:column;gap:10px;padding:12px 0;border-bottom:1px solid #f0f0f0">
           <div style="min-width:0">
-            <strong style="font-size:13px">${prof.nombre} ${prof.apellido}</strong><br/>
-            <span style="color:${colorPorEstado(prof.estado?.codigo)};font-weight:600;font-size:11px">
+            <strong style="font-size:15px">${prof.nombre} ${prof.apellido}</strong><br/>
+            <span style="color:${colorPorEstado(prof.estado?.codigo)};font-weight:600;font-size:13px">
               ${prof.estado?.nombre || "Sin estado"}
             </span>
           </div>
-          <div style="display:flex;gap:4px;shrink:0">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn-catalogo-popup" data-profesional-id="${prof.id}"
-              style="background:#fff;color:#18181b;border:1px solid #d4d4d8;border-radius:9999px;padding:5px 9px;font-size:11px;cursor:pointer;white-space:nowrap">
+              style="flex:1;min-width:80px;min-height:40px;background:#fff;color:#18181b;border:1px solid #d4d4d8;border-radius:9999px;padding:9px 12px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">
               Catálogo
             </button>
             <button class="btn-agendar-popup" data-profesional-id="${prof.id}" ${noDisponible ? "disabled" : ""}
-              style="background:${noDisponible ? "#e4e4e7" : "#18181b"};color:${noDisponible ? "#a1a1aa" : "#fff"};border:none;border-radius:9999px;padding:5px 9px;font-size:11px;cursor:${noDisponible ? "not-allowed" : "pointer"};white-space:nowrap">
+              style="flex:1;min-width:80px;min-height:40px;background:${noDisponible ? "#e4e4e7" : "#18181b"};color:${noDisponible ? "#a1a1aa" : "#fff"};border:none;border-radius:9999px;padding:9px 12px;font-size:13px;font-weight:500;cursor:${noDisponible ? "not-allowed" : "pointer"};white-space:nowrap;-webkit-tap-highlight-color:transparent">
               Agendar
             </button>
             <button class="btn-mensaje-popup" data-profesional-id="${prof.id}"
-              style="background:#fff;color:#18181b;border:1px solid #d4d4d8;border-radius:9999px;padding:5px 9px;font-size:11px;cursor:pointer;white-space:nowrap">
+              style="flex:1;min-width:80px;min-height:40px;background:#fff;color:#18181b;border:1px solid #d4d4d8;border-radius:9999px;padding:9px 12px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">
               Chat
             </button>
           </div>
@@ -792,19 +792,27 @@ const RADIO_AGRUPACION_METROS = Number(import.meta.env.VITE_RADIO_AGRUPACION_MET
       {/* Barra de búsqueda flotante centrada */}
       {estado.listo && (
         <div
-          style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", width: "min(90%, 480px)", zIndex: 20 }}
+          style={{
+            position: "absolute",
+            top: 16,
+            left: 16,
+            right: 16,
+            maxWidth: 280,
+            margin: "0 auto",
+            zIndex: 20,
+          }}
         >
-          <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full px-4 py-3 flex items-center gap-2.5 shadow-lg">
+          <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-2.5 shadow-lg">
             <Search size={17} className="text-zinc-400 dark:text-zinc-500 shrink-0" />
             <input
               type="text"
               value={textoBusqueda}
               onChange={(e) => setTextoBusqueda(e.target.value)}
               placeholder="Buscar profesionales, servicios o categorías"
-              className="flex-1 bg-transparent text-sm text-zinc-700 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+              className="flex-1 min-w-0 bg-transparent text-base sm:text-sm text-zinc-700 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
             />
             {buscando && (
-              <span className="text-xs text-zinc-400 shrink-0 animate-pulse">buscando…</span>
+              <span className="hidden xs:inline text-xs text-zinc-400 shrink-0 animate-pulse">buscando…</span>
             )}
           </div>
 
@@ -814,7 +822,7 @@ const RADIO_AGRUPACION_METROS = Number(import.meta.env.VITE_RADIO_AGRUPACION_MET
                 <button
                   key={prof.id}
                   onClick={() => irAProfesional(prof)}
-                  className="w-full text-left px-4 py-2.5 flex flex-col hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors border-b border-zinc-100 dark:border-zinc-700 last:border-b-0"
+                  className="w-full text-left px-4 py-3 min-h-[52px] flex flex-col justify-center hover:bg-zinc-100 dark:hover:bg-zinc-700 active:bg-zinc-100 dark:active:bg-zinc-700 transition-colors border-b border-zinc-100 dark:border-zinc-700 last:border-b-0"
                 >
                   <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
                     {prof.nombre} {prof.apellido}

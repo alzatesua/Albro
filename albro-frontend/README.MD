@@ -442,7 +442,7 @@ El sistema de WebSockets permite actualizaciones en tiempo real de las citas:
 1. **Cliente inicia conexión**:
    ```js
    const { ticket } = await getWsTicket();
-   const socket = new WebSocket(`ws://localhost:8006/ws/citas/?ticket=${ticket}`);
+   const socket = new WebSocket(`wss://albro.app/ws/citas/?ticket=${ticket}`);
    ```
 
 2. **Backend envía eventos** cuando una cita cambia:

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNotificacionesWS } from "@/hooks/useNotificacionesWS";
 import Portal from "@/components/ui/Portal";
+import ModalRequiereLogin from "@/components/ModalRequiereLogin";
 import { Check, Gavel, UserSearch, Search, ArrowLeft, ArrowRight, Loader2, CalendarDays, Clock } from "lucide-react";
 import {
   getCategorias,
@@ -85,6 +86,7 @@ const Stepper = ({ pasoActual, pasos }) => (
 const ModalBuscarServicio = ({ onClose, onBuscar, onNotificar, profesionalPreseleccionado }) => {
   const { usuario } = useAuth();
   const [pasoActual, setPasoActual] = useState(1);
+  const [mostrarModalLogin, setMostrarModalLogin] = useState(false);
 
   const [categorias, setCategorias] = useState([]);
   const [cargandoCategorias, setCargandoCategorias] = useState(true);
@@ -206,6 +208,13 @@ useEffect(() => {
       .finally(() => setCargandoAgenda(false));
   }, [modo, profesionalSel, servicioSel, fecha]);
 
+  const irAPasoProtegido = (paso) => {
+    if (!usuario) {
+      setMostrarModalLogin(true);
+      return;
+    }
+    setPasoActual(paso);
+  };
 
   const handleCategoria = (id) => {
     setCategoriaSel(id);
@@ -230,7 +239,7 @@ useEffect(() => {
       // Ya sabemos quién es el profesional (viene del pin del mapa): saltamos Modalidad y Profesional
       setModo("profesional");
       setProfesionalSel(profesionalPreseleccionado.id);
-      setTimeout(() => setPasoActual(5), 300);
+      setTimeout(() => irAPasoProtegido(5), 300);
     } else {
       setModo(null);
       setProfesionalSel(null);
@@ -246,7 +255,7 @@ useEffect(() => {
     setFecha("");
     setAgenda(null);
     setCupoSel(null);
-    setTimeout(() => setPasoActual(4), 300);
+    setTimeout(() => irAPasoProtegido(4), 300);
   };
 
   // ── Nuevo: seleccionar profesional avanza automáticamente al paso 5 ───
@@ -255,7 +264,7 @@ useEffect(() => {
     setFecha("");
     setAgenda(null);
     setCupoSel(null);
-    setTimeout(() => setPasoActual(5), 300);
+    setTimeout(() => irAPasoProtegido(5), 300);
   };
 
   const puedeAvanzar = () => {
@@ -753,6 +762,14 @@ useEffect(() => {
           </div>
         </div>
       </div>
+        <ModalRequiereLogin
+          abierto={mostrarModalLogin}
+          onCancelar={() => setMostrarModalLogin(false)}
+          onClose={onClose}
+          titulo="Espera, necesitas una cuenta para agendar"
+          mensaje="Inicia sesión o regístrate para ver la disponibilidad y confirmar tu cita."
+          redirectTo="/dashboard"
+        />
     </Portal>
   );
 };

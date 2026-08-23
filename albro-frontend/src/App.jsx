@@ -24,14 +24,7 @@ function App() {
           <Route path="/registrarme" element={<Registropage />} />
           <Route path="/terminos" element={<TerminosPrivacidadPage />} />
           <Route path="/pago-membresia" element={<FormaPagoPage />} />
-          <Route
-            path="/dashboard"
-            element={
-              <RutaProtegida>
-                <DashboardPage />
-              </RutaProtegida>
-            }
-          />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/agendar/:profesionalId" element={<AgendarProfesionalPage />} />
 
           {/* Panel admin — contexto de auth independiente */}

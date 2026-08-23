@@ -372,15 +372,10 @@ class AgendaProfesionalView(APIView):
 class ListarProfesionalesUbicacionView(APIView):
     """
     GET /api/profesionales/ubicaciones/
-
-    Lista todos los profesionales activos con su información de ubicación:
-    - ID
-    - Nombre y apellido
-    - Dirección
-    - Latitud y longitud
-    - Foto de perfil
+    ...
+    Endpoint público — no requiere autenticación.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         profesionales = PerfilProfesional.objects.filter(
@@ -401,12 +396,10 @@ class ListarProfesionalesUbicacionView(APIView):
 class BuscarProfesionalesView(APIView):
     """
     GET /api/profesionales/buscar/?q=<texto>&servicio=<id>&categoria=<texto_o_id>
-
-    Busqueda tolerante a errores de escritura, tildes y mayusculas.
-    'q' busca en el profesional Y en los servicios que ofrece (nombre/descripcion).
-    'categoria' busca por nombre O descripcion de la categoria.
+    ...
+    Endpoint público — no requiere autenticación.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     UMBRAL_SIMILITUD = 0.2
 
@@ -495,8 +488,9 @@ class ServiciosDeProfesionalView(APIView):
 
     Devuelve solo los servicios que ESE profesional ofrece activamente,
     agrupables por categoria en el frontend si se necesita.
+    Endpoint público — no requiere autenticación.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request, profesional_id):
         perfil = get_object_or_404(PerfilProfesional, pk=profesional_id, activo=True)

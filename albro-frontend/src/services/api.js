@@ -22,25 +22,28 @@ const request = async (endpoint, options = {}) => {
   const data = await res.json();
 
   if (!res.ok) {
-    if (res.status === 401) {
+    if (res.status === 401 && localStorage.getItem("access_token")) {      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("usuario");
       window.location.href = '/login';
-    } else {
-      const mensaje =
-        data?.detail ||
-        data?.detalle ||
-        data?.message ||
-        Object.entries(data)
-          .map(([campo, errs]) => {
-            const texto = Array.isArray(errs) ? errs.join(", ") : errs;
-            return campo === "non_field_errors" ? texto : `${campo}: ${texto}`;
-          })
-          .join(" · ");
-
-      const err = new Error(mensaje);
-      err.status = res.status;
-      err.requierePago = data?.requiere_pago === true; // ← nuevo
-      throw err;
+      return;
     }
+
+    const mensaje =
+      data?.detail ||
+      data?.detalle ||
+      data?.message ||
+      Object.entries(data)
+        .map(([campo, errs]) => {
+          const texto = Array.isArray(errs) ? errs.join(", ") : errs;
+          return campo === "non_field_errors" ? texto : `${campo}: ${texto}`;
+        })
+        .join(" · ");
+
+    const err = new Error(mensaje);
+    err.status = res.status;
+    err.requierePago = data?.requiere_pago === true;
+    throw err;
   }
 
   return data;
@@ -142,8 +145,14 @@ const requestFormData = async (endpoint, formData, options = {}) => {
   const data = await res.json();
 
   if (!res.ok) {
-    if (res.status === 401) {
+    if (res.status === 401 && localStorage.getItem("access_token")) {
+      // Había token pero es inválido/expiró: lo limpiamos para que
+      // las próximas peticiones (incluidas las públicas) no lo sigan enviando
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("usuario");
       window.location.href = '/login';
+      return;
     } else {
       const mensaje =
         data?.detail ||

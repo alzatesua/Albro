@@ -22,7 +22,10 @@ import uuid
 from django.utils import timezone
 
 class CategoriaServicioListCreateView(APIView):
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get(self, request):
         categorias = CategoriaServicio.objects.annotate(
@@ -32,6 +35,12 @@ class CategoriaServicioListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        if request.user.rol != 'admin' and not request.user.is_staff:
+            return Response(
+                {'detalle': 'Solo un administrador puede crear categorias.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = CategoriaServicioSerializer(data=request.data)
         if serializer.is_valid():
             categoria = serializer.save()
@@ -43,7 +52,6 @@ class CategoriaServicioListCreateView(APIView):
                 status=status.HTTP_201_CREATED,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class CategoriaServicioDetalleView(APIView):
     permission_classes = [IsAuthenticated]
@@ -58,7 +66,9 @@ class CategoriaServicioDetalleView(APIView):
 
 
 class ServicioListCreateView(APIView):
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
 
     def get(self, request):
         servicios = Servicio.objects.select_related('categoria')
@@ -70,6 +80,12 @@ class ServicioListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        if request.user.rol != 'admin' and not request.user.is_staff:
+            return Response(
+                {'detalle': 'Solo un administrador puede crear servicios.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = ServicioSerializer(data=request.data)
         if serializer.is_valid():
             servicio = serializer.save()
@@ -87,6 +103,12 @@ class AsociarServicioCategoriaView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, categoria_id):
+        if request.user.rol != 'admin' and not request.user.is_staff:
+            return Response(
+                {'detalle': 'Solo un administrador puede asociar servicios a una categoria.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         categoria = get_object_or_404(CategoriaServicio, pk=categoria_id)
         serializer = AsociarServicioCategoriaSerializer(data=request.data)
 

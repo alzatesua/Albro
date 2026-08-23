@@ -160,7 +160,13 @@ const DashboardPage = () => {
   // ──────────────────────────────────────────────────────────────────────────
 
   const esProfesional = usuario?.rol === "profesional";
-  const menu = esProfesional ? menuProfesional : menuCliente;
+  const invitado = !usuario;
+
+  const menuInvitado = [
+    { icono: Map, label: "Mapa", key: "mapa" },
+  ];
+
+  const menu = invitado ? menuInvitado : (esProfesional ? menuProfesional : menuCliente);
 
   const [profesionalIdPendiente, setProfesionalIdPendiente] = useState(
     () => localStorage.getItem(AGENDAR_PENDIENTE_KEY)
@@ -207,14 +213,20 @@ const DashboardPage = () => {
   const secciones = {
     mapa: (
       <MapaSection
+        usuarioAutenticado={!!usuario}
         profesionalIdInicial={seccionActiva === "mapa" ? profesionalIdPendiente : null}
         onConsumirProfesionalInicial={consumirProfesionalPendiente}
-        onAbrirChat={(prof) =>
+        onRequiereLogin={() => navigate("/login", { state: { redirectTo: "/dashboard" } })}
+        onAbrirChat={(prof) => {
+          if (!usuario) {
+            navigate("/login", { state: { redirectTo: "/dashboard" } });
+            return;
+          }
           setChatAbierto({
             profesionalId: prof.id,
             nombreContacto: `${prof.nombre} ${prof.apellido}`,
-          })
-        }
+          });
+        }}
       />
     ),
     servicios:   <ServiciosSection onNotificar={setNotificacion} />,
@@ -318,8 +330,9 @@ const DashboardPage = () => {
   };
 
   useEffect(() => {
+    if (!usuario) return;
     cargarNotificaciones();
-  }, []);
+  }, [usuario]);
 
   useEffect(() => {
     const handleClickFuera = (e) => {
@@ -613,172 +626,181 @@ const DashboardPage = () => {
           <span className="text-zinc-900 dark:text-white text-lg font-bold">Albro</span>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-3">
-          <button
-            onClick={toggleDark}
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors shrink-0"
-          >
-            {dark ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
-          {/* ── Campana de notificaciones ── */}
-          <div className="relative" ref={notifRef}>
-            <button
-              onClick={abrirNotificaciones}
-              className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
-            >
-              <div
-                className={`relative flex items-center justify-center ${
-                  animarCampana ? "animate-shake-suave" : ""
-                }`}
+                <div className="flex items-center gap-1.5 sm:gap-3">
+          {invitado ? (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate("/login")}>
+                Iniciar sesión
+              </Button>
+              <Button size="sm" onClick={() => navigate("/registrarme")}>
+                Registrarme
+              </Button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={toggleDark}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors shrink-0"
               >
-                <Bell size={20} />
-                {hayNuevas && (
-                  <span className="absolute top-0 -right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-900" />
+                {dark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
+              {/* ── Campana de notificaciones ── */}
+              <div className="relative" ref={notifRef}>
+                <button
+                  onClick={abrirNotificaciones}
+                  className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                >
+                  <div
+                    className={`relative flex items-center justify-center ${
+                      animarCampana ? "animate-shake-suave" : ""
+                    }`}
+                  >
+                    <Bell size={20} />
+                    {hayNuevas && (
+                      <span className="absolute top-0 -right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-900" />
+                    )}
+                  </div>
+                </button>
+
+                {mostrarNotificaciones && (
+                  <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
+                    <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
+                      <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Notificaciones</span>
+                    </div>
+
+                    <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
+                      {cargandoNotificaciones ? (
+                        <div className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
+                          Cargando...
+                        </div>
+                      ) : notificaciones.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
+                          No tienes notificaciones nuevas
+                        </div>
+                      ) : (
+                        notificacionesAgrupadas.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => abrirDetalleNotificacion(n)}
+                            className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 last:border-0 text-sm cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-800 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-800/50"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-medium">{n.titulo}</p>
+                              {n._cantidadAgrupada > 1 && (
+                                <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+                                  {n._cantidadAgrupada}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs mt-0.5">{n.mensaje}</p>
+                            <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                              {formatearFecha(n.fecha_creacion)}
+                            </span>
+                          </div>
+                        ))
+                      )}
+
+                      <button
+                        onClick={handleVerLeidas}
+                        className="w-full px-4 py-2.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 border-b border-zinc-50 dark:border-zinc-800 transition-colors"
+                      >
+                        {mostrarLeidas ? "Ocultar leídas" : "Ver leídas"}
+                      </button>
+
+                      {mostrarLeidas && (
+                        <>
+                          {notificacionesLeidas.map((n) => (
+                            <div
+                              key={n.id}
+                              onClick={() => abrirDetalleNotificacion(n)}
+                              className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 last:border-0 text-sm cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-500 dark:text-zinc-400"
+                            >
+                              <p className="font-medium">{n.titulo}</p>
+                              <p className="text-xs mt-0.5">{n.mensaje}</p>
+                              <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                                {formatearFecha(n.fecha_creacion)}
+                              </span>
+                            </div>
+                          ))}
+
+                          {notificacionesLeidas.length === 0 && !cargandoLeidas && (
+                            <div className="px-4 py-4 text-center text-xs text-zinc-400 dark:text-zinc-500">
+                              No hay notificaciones leídas
+                            </div>
+                          )}
+
+                          {hayMasLeidas && (
+                            <button
+                              onClick={cargarMasLeidas}
+                              disabled={cargandoLeidas}
+                              className="w-full px-4 py-2.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 disabled:opacity-50 transition-colors"
+                            >
+                              {cargandoLeidas ? "Cargando..." : "Cargar más"}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-            </button>
 
-            {mostrarNotificaciones && (
-              <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
-                <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
-                  <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Notificaciones</span>
-                </div>
+              <div className="relative" ref={menuPerfilRef}>
+                <button
+                  type="button"
+                  onClick={() => setMostrarMenuPerfil((v) => !v)}
+                  className="flex items-center gap-2 text-sm rounded-xl px-1 sm:px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                    <User size={18} className="text-zinc-500 dark:text-zinc-400" />
+                  </div>
+                  <span className="hidden md:inline font-medium text-zinc-800 dark:text-zinc-200">
+                    {usuario?.nombre} {usuario?.apellido}
+                  </span>
+                  <span className="hidden md:inline text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full capitalize">
+                    {usuario?.rol}
+                  </span>
+                </button>
 
-                <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
-                  {/* ── No leídas ── */}
-                  {cargandoNotificaciones ? (
-                    <div className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
-                      Cargando...
-                    </div>
-                  ) : notificaciones.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
-                      No tienes notificaciones nuevas
-                    </div>
-                  ) : (
-                    notificacionesAgrupadas.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => abrirDetalleNotificacion(n)}
-                        className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 last:border-0 text-sm cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-800 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-800/50"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium">{n.titulo}</p>
-                          {n._cantidadAgrupada > 1 && (
-                            <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
-                              {n._cantidadAgrupada}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs mt-0.5">{n.mensaje}</p>
-                        <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                          {formatearFecha(n.fecha_creacion)}
-                        </span>
-                      </div>
-                    ))
+                {mostrarMenuPerfil && (
+                <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
+                  {usuario?.rol === "profesional" && (
+                    <button
+                      onClick={irAConfigurarPerfil}
+                      className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                    >
+                      <Settings size={15} className="text-zinc-400 dark:text-zinc-500" />
+                      Configurar perfil
+                    </button>
                   )}
 
-                  {/* ── Botón para ver leídas ── */}
-                  <button
-                    onClick={handleVerLeidas}
-                    className="w-full px-4 py-2.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 border-b border-zinc-50 dark:border-zinc-800 transition-colors"
-                  >
-                    {mostrarLeidas ? "Ocultar leídas" : "Ver leídas"}
-                  </button>
-
-                  {/* ── Leídas (colapsable, con paginación) ── */}
-                  {mostrarLeidas && (
-                    <>
-                      {notificacionesLeidas.map((n) => (
-                        <div
-                          key={n.id}
-                          onClick={() => abrirDetalleNotificacion(n)}
-                          className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 last:border-0 text-sm cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-500 dark:text-zinc-400"
-                        >
-                          <p className="font-medium">{n.titulo}</p>
-                          <p className="text-xs mt-0.5">{n.mensaje}</p>
-                          <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                            {formatearFecha(n.fecha_creacion)}
-                          </span>
-                        </div>
-                      ))}
-
-                      {notificacionesLeidas.length === 0 && !cargandoLeidas && (
-                        <div className="px-4 py-4 text-center text-xs text-zinc-400 dark:text-zinc-500">
-                          No hay notificaciones leídas
-                        </div>
-                      )}
-
-                      {hayMasLeidas && (
-                        <button
-                          onClick={cargarMasLeidas}
-                          disabled={cargandoLeidas}
-                          className="w-full px-4 py-2.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 disabled:opacity-50 transition-colors"
-                        >
-                          {cargandoLeidas ? "Cargando..." : "Cargar más"}
-                        </button>
-                      )}
-                    </>
+                {usuario?.rol === "cliente" && (
+                    <button
+                      onClick={() => {
+                        setMostrarMenuPerfil(false);
+                        setMostrarModalProfesional(true);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                    >
+                      <Briefcase size={15} className="text-zinc-400 dark:text-zinc-500" />
+                      Cambiar a profesional
+                    </button>
                   )}
                 </div>
-              </div>
-            )}
-          </div>
-          {/* ─────────────────────────────────────── */}
-
-          <div className="relative" ref={menuPerfilRef}>
-            <button
-              type="button"
-              onClick={() => setMostrarMenuPerfil((v) => !v)}
-              className="flex items-center gap-2 text-sm rounded-xl px-1 sm:px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
-                <User size={18} className="text-zinc-500 dark:text-zinc-400" />
-              </div>
-              <span className="hidden md:inline font-medium text-zinc-800 dark:text-zinc-200">
-                {usuario?.nombre} {usuario?.apellido}
-              </span>
-              <span className="hidden md:inline text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full capitalize">
-                {usuario?.rol}
-              </span>
-            </button>
-
-            {mostrarMenuPerfil && (
-            <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 animate__animated animate__fadeIn animate__faster">
-              {usuario?.rol === "profesional" && (
-                <button
-                  onClick={irAConfigurarPerfil}
-                  className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
-                >
-                  <Settings size={15} className="text-zinc-400 dark:text-zinc-500" />
-                  Configurar perfil
-                </button>
               )}
+              </div>
 
-            {usuario?.rol === "cliente" && (
-                <button
-                  onClick={() => {
-                    setMostrarMenuPerfil(false);
-                    setMostrarModalProfesional(true);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
-                >
-                  <Briefcase size={15} className="text-zinc-400 dark:text-zinc-500" />
-                  Cambiar a profesional
-                </button>
-              )}
-            </div>
+              <Button
+                variant="outline" size="sm"
+                onClick={() => { limpiarSesion(); navigate("/login"); }}
+                className="text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 border-zinc-200 dark:border-zinc-700 dark:bg-transparent px-2 sm:px-3"
+              >
+                <LogOut size={18} className="sm:mr-1.5" />
+                <span className="hidden sm:inline">Salir</span>
+              </Button>
+            </>
           )}
-          </div>
-
-          <Button
-            variant="outline" size="sm"
-            onClick={() => { limpiarSesion(); navigate("/login"); }}
-            className="text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 border-zinc-200 dark:border-zinc-700 dark:bg-transparent px-2 sm:px-3"
-          >
-            <LogOut size={18} className="sm:mr-1.5" />
-            <span className="hidden sm:inline">Salir</span>
-          </Button>
         </div>
       </header>
 
@@ -797,7 +819,7 @@ const DashboardPage = () => {
         </div>
       </main>
 
-      <Dock menu={menu} seccionActiva={seccionActiva} setSeccionActiva={setSeccionActiva} />
+      {!invitado && <Dock menu={menu} seccionActiva={seccionActiva} setSeccionActiva={setSeccionActiva} />}
 
       {/* Modal para calificar profesional después de una cita completada */}
       {citaParaCalificar && (
